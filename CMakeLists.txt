@@ -8,7 +8,7 @@ find_package(Caffe)
 include_directories(${Caffe_INCLUDE_DIRS})
 add_definitions(${Caffe_DEFINITIONS})    
 
-#message(${Caffe_INCLUDE_DIRS})
+message(${Caffe_INCLUDE_DIRS})
 
 #find_package(OpenCV REQUIRED)
 #message(${OpenCV_INCLUDE_DIRS})
@@ -16,8 +16,8 @@ add_definitions(${Caffe_DEFINITIONS})
 #include_directories(${OpenCV_INCLUDE_DIRS})
 #include_directories(${OpenCV_INCLUDE_DIRS})
 
-find_package(boost REQUIRED)
-include_directories(${boost_INCLUDE_DIRS})
+#find_package(boost REQUIRED)
+#include_directories(${boost_INCLUDE_DIRS})
 
 add_executable(lfw_val src/face_recognition.cpp lfw_val/lfw_val.cpp)
 target_include_directories (lfw_val PRIVATE ./include )

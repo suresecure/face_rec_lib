@@ -199,8 +199,8 @@ std::vector<float> Classifier::extract_layer_by_name(const cv::Mat& img, const s
   string feature_layer_name = layer_name;
   if (net_->name() == "small_face")
 	  feature_layer_name = "prob";
-  else if (net_->name() == "big_face")
-	  feature_layer_name = "fc6";
+  else if (net_->name() == "big_16_layers_face")
+	  feature_layer_name = "fc7";
   else
 	  return std::vector<float>();
 

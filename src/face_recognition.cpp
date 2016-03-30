@@ -30,8 +30,8 @@ namespace face_rec_srzn{
 	}
 	vector<float> ExtractFaceFeatureFromImage(Mat face, Classifier *classifier)
 	{
-		//return classifier->extract_layer_by_name(face, "prob");  
-    return classifier->extract_layer_by_name(face, "fc7");  
+    return classifier->extract_layer_by_name(face, "prob");  
+    //return classifier->extract_layer_by_name(face, "fc7");  
 	}
 	vector<float> ExtractFaceFeatureFromBuffer(void *rec, void *imgbuf, int w, int h)
 	{
