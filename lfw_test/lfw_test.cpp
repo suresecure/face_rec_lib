@@ -19,7 +19,8 @@ int main(int argc, char **argv) {
   void *recognizer =
       InitRecognizer("../../models/small/small.prototxt",
                      "../../models/small/small.caffemodel",
-                     "../../models/small/small_mean_image.binaryproto");
+                     "../../models/small/small_mean_image.binaryproto",
+                     "../../models/small/similarity.bin");
 
   ifstream pair_file("../../lfw_data/BW100issame.txt");
   // ifstream pair_file("../../lfw_data/COLOR200isname.txt");
@@ -48,7 +49,7 @@ int main(int argc, char **argv) {
         recognizer, face1.data, face1.cols, face1.rows);
     vector<float> face2_feature = ExtractFaceFeatureFromBuffer(
         recognizer, face2.data, face2.cols, face2.rows);
-    float similarity = FaceVerification(face1_feature, face2_feature);
+    float similarity = FaceVerification(recognizer, face1_feature, face2_feature);
     string result("Wrong!");
     if((similarity >= 0.9f && gt) ||
       (similarity < 0.9f && !gt))

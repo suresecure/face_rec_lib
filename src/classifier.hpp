@@ -56,10 +56,11 @@ Classifier::Classifier(const string& model_file,
                        const string& trained_file,
                        const string& mean_file,
                        const string& label_file) {
+  Caffe::set_mode(Caffe::CPU);
 #ifdef CPU_ONLY
-  //Caffe::set_mode(Caffe::CPU);
+  Caffe::set_mode(Caffe::CPU);
 #else
-  Caffe::set_mode(Caffe::GPU);
+  //Caffe::set_mode(Caffe::GPU);
 #endif
 
   /* Load the network. */
@@ -94,10 +95,11 @@ Classifier::Classifier(const string& model_file,
                        const string& trained_file,
 					   const string& mean_file
                        ) {
+  Caffe::set_mode(Caffe::CPU);
 #ifdef CPU_ONLY
   Caffe::set_mode(Caffe::CPU);
 #else
-  Caffe::set_mode(Caffe::GPU);
+  //Caffe::set_mode(Caffe::GPU);
 #endif
 
   /* Load the network. */
