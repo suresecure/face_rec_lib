@@ -70,8 +70,12 @@ install(TARGETS face_rec_srzn
   PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}"
   COMPONENT dev)
 
-#install(FILES lfw_test
-  #DESTINATION lfw_test)
+install(FILES lfw_test/lfw_test.cpp
+  lfw_test/CMakeLists.txt
+  DESTINATION lfw_test)
+install(FILES caffe_lib/libcaffe.so
+  caffe_lib/libcaffe.so.1.0.0-rc3
+  DESTINATION lib)
 
 #INSTALL(TARGETS face_rec_srzn 
   #RUNTIME DESTINATION bin
