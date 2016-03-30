@@ -57,7 +57,7 @@ Classifier::Classifier(const string& model_file,
                        const string& mean_file,
                        const string& label_file) {
 #ifdef CPU_ONLY
-  Caffe::set_mode(Caffe::CPU);
+  //Caffe::set_mode(Caffe::CPU);
 #else
   Caffe::set_mode(Caffe::GPU);
 #endif
@@ -200,7 +200,7 @@ std::vector<float> Classifier::extract_layer_by_name(const cv::Mat& img, const s
   if (net_->name() == "small_face")
 	  feature_layer_name = "prob";
   else if (net_->name() == "big_16_layers_face")
-	  feature_layer_name = "fc7";
+	  feature_layer_name = "fc6";
   else
 	  return std::vector<float>();
 

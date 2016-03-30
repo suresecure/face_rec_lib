@@ -1,48 +1,117 @@
 cmake_minimum_required (VERSION 2.8.11)
-project (object_detection_library)
+project (face_recognition_srzn)
 
 set (face_recognition_library_VERSION_MAJOR 1)
 set (face_recognition_library_VERSION_MINOR 0)
+set(FaceRecSrzn_MAJOR_VERSION 1)
+set(FaceRecSrzn_MINOR_VERSION 0)
+set(FaceRecSrzn_PATCH_VERSION 3)
+set(FaceRecSrzn_VERSION
+  ${FaceRecSrzn_MAJOR_VERSION}.${FaceRecSrzn_MINOR_VERSION}.${FaceRecSrzn_PATCH_VERSION})
+
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT) 
+  set(CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/install" CACHE PATH "Default install path" FORCE) 
+endif() 
+
+# Offer the user the choice of overriding the installation directories
+set(INSTALL_LIB_DIR lib CACHE PATH "Installation directory for libraries")
+set(INSTALL_BIN_DIR bin CACHE PATH "Installation directory for executables")
+set(INSTALL_INCLUDE_DIR include CACHE PATH
+  "Installation directory for header files")
+if(WIN32 AND NOT CYGWIN)
+  set(DEF_INSTALL_CMAKE_DIR CMake)
+else()
+  set(DEF_INSTALL_CMAKE_DIR lib/CMake/FaceRecSrzn)
+endif()
+set(INSTALL_CMAKE_DIR ${DEF_INSTALL_CMAKE_DIR} CACHE PATH
+  "Installation directory for CMake files")
+
+# set up include-directories
+include_directories(
+  "${PROJECT_SOURCE_DIR}"   # to find foo/foo.h
+  "${PROJECT_BINARY_DIR}")  # to find foo/config.h
+
+# Make relative paths absolute (needed later on)
+foreach(p LIB BIN INCLUDE CMAKE)
+  set(var INSTALL_${p}_DIR)
+  if(NOT IS_ABSOLUTE "${${var}}")
+    set(${var} "${CMAKE_INSTALL_PREFIX}/${${var}}")
+  endif()
+endforeach()
 
 find_package(Caffe)
 include_directories(${Caffe_INCLUDE_DIRS})
+include_directories(include)
 add_definitions(${Caffe_DEFINITIONS})    
 
-message(${Caffe_INCLUDE_DIRS})
+#message(${Caffe_INCLUDE_DIRS})
 
-#find_package(OpenCV REQUIRED)
-#message(${OpenCV_INCLUDE_DIRS})
-#message(${OpenCV_VERSION})
-#include_directories(${OpenCV_INCLUDE_DIRS})
-#include_directories(${OpenCV_INCLUDE_DIRS})
+configure_file(config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY)
 
-#find_package(boost REQUIRED)
-#include_directories(${boost_INCLUDE_DIRS})
-
-add_executable(lfw_val src/face_recognition.cpp lfw_val/lfw_val.cpp)
+add_executable(lfw_val src/face_recognition.cpp lfw_val/lfw_val.cpp config.h.in)
 target_include_directories (lfw_val PRIVATE ./include )
 target_link_libraries(lfw_val ${Caffe_LIBRARIES})
 
-#OPTION(USE_GPU "Use GPU" ON) # Enabled by default
-#IF(USE_GPU)
-#ADD_DEFINITIONS(-DGPU=1)
-#ENDIF(USE_GPU)
+add_library (face_rec_srzn SHARED src/face_recognition.cpp include/face_recognition.hpp config.h.in)
+#target_include_directories (face_rec_srzn PUBLIC ./include )
+target_link_libraries(face_rec_srzn ${Caffe_LIBRARIES})
 
-#find_package(CUDA)
-#SET(CUDA_NVCC_FLAGS "--gpu-architecture=compute_20 --gpu-code=compute_20" CACHE STRING "nvcc flags" FORCE)
-#CFLAGS+= -DGPU
-#cuda_compile(../src/convolutional_kernels.cu ../src/deconvolutional_kernels.cu ../src/activation_kernels.cu ../src/im2col_kernels.cu ../src/col2im_kernels.cu ../src/blas_kernels.cu ../src/crop_layer_kernels.cu ../src/dropout_layer_kernels.cu ../src/maxpool_layer_kernels.cu ../src/softmax_layer_kernels.cu ../src/network_kernels.cu ../src/avgpool_layer_kernels.cu ../src/gemm.c ../src/utils.c ../src/cuda.c ../src/deconvolutional_layer.c ../src/convolutional_layer.c)
-#cuda_add_library(object_detection SHARED ../src/convolutional_kernels.cu ../src/deconvolutional_kernels.cu ../src/activation_kernels.cu ../src/im2col_kernels.cu ../src/col2im_kernels.cu ../src/blas_kernels.cu ../src/crop_layer_kernels.cu ../src/dropout_layer_kernels.cu ../src/maxpool_layer_kernels.cu ../src/softmax_layer_kernels.cu ../src/network_kernels.cu ../src/avgpool_layer_kernels.cu ../src/gemm.c ../src/utils.c ../src/cuda.c ../src/deconvolutional_layer.c ../src/convolutional_layer.c ../src/list.c ../src/image.c ../src/activations.c ../src/im2col.c ../src/col2im.c ../src/blas.c ../src/crop_layer.c ../src/dropout_layer.c ../src/maxpool_layer.c ../src/softmax_layer.c ../src/matrix.c ../src/network.c ../src/connected_layer.c ../src/cost_layer.c ../src/parser.c ../src/detection_layer.c ../src/route_layer.c ../src/box.c ../src/normalization_layer.c ../src/avgpool_layer.c ../src/layer.c ../src/local_layer.c ../src/shortcut_layer.c ../src/activation_layer.c ../src/rnn_layer.c ../src/option_list.c ../src/data.c object_detection.c)
-# Create a library called "Hello" which includes the source file "hello.cxx".
-# The extension is already found. Any number of sources could be listed here.
-#add_library (object_detection SHARED ../src/convolutional_kernels.cu ../src/list.c ../src/image.c ../src/activations.c ../src/im2col.c ../src/col2im.c ../src/blas.c ../src/crop_layer.c ../src/dropout_layer.c ../src/maxpool_layer.c ../src/softmax_layer.c ../src/matrix.c ../src/network.c ../src/connected_layer.c ../src/cost_layer.c ../src/parser.c ../src/detection_layer.c ../src/route_layer.c ../src/box.c ../src/normalization_layer.c ../src/avgpool_layer.c ../src/layer.c ../src/local_layer.c ../src/shortcut_layer.c ../src/activation_layer.c ../src/rnn_layer.c ../src/option_list.c ../src/data.c object_detection.c)
+set_target_properties(face_rec_srzn PROPERTIES
+  PUBLIC_HEADER "include/face_recognition.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
+  VERSION ${FaceRecSrzn_VERSION})
 
-#message(STATUS ${CUDA_LIBRARIES})
-# Make sure the compiler can find include files for our Hello library
-# when other libraries or executables link to Hello
-#target_include_directories (object_detection PRIVATE ../src ${CUDA_INCLUDE_DIRS})
-#CUDA_ADD_CUBLAS_TO_TARGET(object_detection)
-#target_link_libraries(object_detection m pthread object_detection_cuda)
-#target_link_libraries(object_detection m pthread ${CUDA_curand_LIBRARY} ${CUDA_CUBLAS_LIBRARIES})
+#FRAMEWORK ON
+#SOVERSION 0
+install(TARGETS face_rec_srzn
+  # IMPORTANT: Add the foo library to the "export-set"
+  EXPORT FaceRecSrznTargets
+  RUNTIME DESTINATION "${INSTALL_BIN_DIR}" COMPONENT bin
+  LIBRARY DESTINATION "${INSTALL_LIB_DIR}" COMPONENT shlib
+  PUBLIC_HEADER DESTINATION "${INSTALL_INCLUDE_DIR}"
+  COMPONENT dev)
 
-#add_subdirectory(test)
+#install(FILES lfw_test
+  #DESTINATION lfw_test)
+
+#INSTALL(TARGETS face_rec_srzn 
+  #RUNTIME DESTINATION bin
+  #LIBRARY DESTINATION lib
+  #PUBLIC_HEADER DESTINATION include
+  #)
+
+## The interesting stuff goes here
+## ===============================
+
+## Add all targets to the build-tree export set
+#export(TARGETS face_rec_srzn
+  #FILE "${PROJECT_BINARY_DIR}/FaceRecSrznTargets.cmake")
+
+## Export the package for use from the build-tree
+## (this registers the build-tree with a global CMake-registry)
+#export(PACKAGE FaceRecSrzn)
+
+## Create the FooBarConfig.cmake and FooBarConfigVersion files
+#file(RELATIVE_PATH REL_INCLUDE_DIR "${INSTALL_CMAKE_DIR}"
+   #"${INSTALL_INCLUDE_DIR}")
+## ... for the build tree
+#set(CONF_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}")
+#configure_file(FaceRecSrznConfig.cmake.in
+  #"${PROJECT_BINARY_DIR}/FaceRecSrznConfig.cmake" @ONLY)
+## ... for the install tree
+#set(CONF_INCLUDE_DIRS "\${FaceRecSrzn_CMAKE_DIR}/${REL_INCLUDE_DIR}")
+#configure_file(FaceRecSrznConfig.cmake.in
+  #"${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/FaceRecSrznConfig.cmake" @ONLY)
+## ... for both
+#configure_file(FaceRecSrznConfigVersion.cmake.in
+  #"${PROJECT_BINARY_DIR}/FaceRecSrznConfigVersion.cmake" @ONLY)
+
+## Install the FooBarConfig.cmake and FooBarConfigVersion.cmake
+#install(FILES
+  #"${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/FaceRecSrznConfig.cmake"
+  #"${PROJECT_BINARY_DIR}/FaceRecSrznConfigVersion.cmake"
+  #DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
+
+## Install the export set for use with the install-tree
+#install(EXPORT FaceRecSrznTargets DESTINATION
+  #"${INSTALL_CMAKE_DIR}" COMPONENT dev)
+

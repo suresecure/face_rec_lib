@@ -14,14 +14,15 @@ using boost::format;
 
 int main(int argc, char **argv) {
   // Init Recognizer
-  // void *recognizer = InitRecognizer("../../models/big/big.prototxt",
-  //"../../models/big/big.caffemodel", "");
-  void *recognizer =
-      InitRecognizer("../../models/small/small.prototxt",
-                     "../../models/small/small.caffemodel",
-                     "../../models/small/small_mean_image.binaryproto");
+   void *recognizer = InitRecognizer("../../models/big/big.prototxt",
+  "../../models/big/big.caffemodel", "");
+  //void *recognizer =
+      //InitRecognizer("../../models/small/small.prototxt",
+                     //"../../models/small/small.caffemodel",
+                     //"../../models/small/small_mean_image.binaryproto");
 
-  ifstream pair_file("../../lfw_data/BW100issame.txt");
+  //ifstream pair_file("../../lfw_data/BW100issame.txt");
+  ifstream pair_file("../../lfw_data/COLOR224issame.txt");
   ofstream distance_file("distance_file.txt");
   vector<float> distance_vector;
   vector<bool> gt_vector;
@@ -30,12 +31,14 @@ int main(int argc, char **argv) {
   int fnum = 0;
   while (pair_file >> gt) {
     // Load face images
-    // string face1_name = string("../../lfw_data/100BW/1.png");
-    // string face2_name = string("../../lfw_data/100BW/2.png");
+    //string face1_name =
+        //(boost::format("../../lfw_data/100BW/%1%.png") % (fnum * 2 + 1)).str();
+    //string face2_name =
+        //(boost::format("../../lfw_data/100BW/%1%.png") % (fnum * 2 + 2)).str();
     string face1_name =
-        (boost::format("../../lfw_data/100BW/%1%.png") % (fnum * 2 + 1)).str();
+        (boost::format("../../lfw_data/224COLOR/%1%.png") % (fnum * 2 + 1)).str();
     string face2_name =
-        (boost::format("../../lfw_data/100BW/%1%.png") % (fnum * 2 + 2)).str();
+        (boost::format("../../lfw_data/224COLOR/%1%.png") % (fnum * 2 + 2)).str();
     Mat face1 = imread(face1_name);
     Mat face2 = imread(face2_name);
     //// compute frame per second (fps)
