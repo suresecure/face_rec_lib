@@ -42,15 +42,28 @@ vector<float> ExtractFaceFeatureFromBuffer(void *rec, void *imgbuf, int w,
   Recognizer *recognizer = (Recognizer *)rec;
   return ExtractFaceFeatureFromImage(face_mat, recognizer->cnn_net);
 }
-float FaceDistance(void *rec, const vector<float> &face1_feature,
-                    const vector<float> &face2_feature) {
+vector<float> ExtractFaceFeatureFromMat(void *rec, cv::Mat img)
+{
   Recognizer *recognizer = (Recognizer *)rec;
-  BayesianModel *bayesian_model = recognizer->bayesian_model;
-  float sum = 0;
-  vector<double> face1(face1_feature.begin(), face1_feature.end());
-  vector<double> face2(face2_feature.begin(), face2_feature.end());
-  float distance = bayesian_model->CalcSimilarity(&face1[0], &face2[0], 160);
+  return ExtractFaceFeatureFromImage(img, recognizer->cnn_net);
+}
+float FaceDistance(void *rec, const vector<float> &face1_feature,
+                   const vector<float> &face2_feature) {
+  float distance = 0.f;
+  for (int i = 0; i < face1_feature.size(); i++) {
+    distance += (face1_feature[i] - face2_feature[i]) *
+           (face1_feature[i] - face2_feature[i]);
+  }
+  distance = sqrtf(distance);
   return distance;
+
+  //Recognizer *recognizer = (Recognizer *)rec;
+  //BayesianModel *bayesian_model = recognizer->bayesian_model;
+  //float sum = 0;
+  //vector<double> face1(face1_feature.begin(), face1_feature.end());
+  //vector<double> face2(face2_feature.begin(), face2_feature.end());
+  //float distance = bayesian_model->CalcSimilarity(&face1[0], &face2[0], 160);
+  //return distance;
 }
 float FaceVerification(void *rec, const vector<float> &face1_feature,
                        const vector<float> &face2_feature) {
