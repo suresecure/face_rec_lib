@@ -29,7 +29,7 @@ void *InitRecognizer(const string &cfgname, const string &modelname,
   FLAGS_minloglevel = 3; // close INFO and WARNING level log
   ::google::InitGoogleLogging("SRZNFaceRecognitionLib");
   recognizer->cnn_net = new Classifier(cfgname, modelname, mean_file);
-  recognizer->bayesian_model = new BayesianModel(similarity_bin.c_str());
+  //recognizer->bayesian_model = new BayesianModel(similarity_bin.c_str());
   return (void *)recognizer;
 }
 vector<float> ExtractFaceFeatureFromImage(Mat face, Classifier *classifier) {
@@ -83,6 +83,9 @@ float FaceVerification(void *rec, const vector<float> &face1_feature,
   // if (face1_feature.size() == 160) {
   best_distance = 54.61f;
   range = 10.f;
+
+  best_distance = -21.2243f;
+  range = 20.f;
   //} else if (face1_feature.size() == 4096) {
   // best_distance = 0;
   // range = 100.f;

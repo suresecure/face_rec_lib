@@ -1,5 +1,4 @@
-#ifndef HEADER_BAYESIANMODEL
-#define HEADER_BAYESIANMODEL
+#pragma once
 #include "opencv2/core/core.hpp"
 using namespace  cv;
 
@@ -23,4 +22,3 @@ namespace BayesianModelNs
 	};
 
 }
-#endif

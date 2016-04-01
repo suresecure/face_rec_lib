@@ -8,13 +8,16 @@
 
 #include "opencv2/highgui/highgui.hpp"
 #include "face_recognition.hpp"
+#include "BayesianModel.h"
 #include "LBF.h"
 #include "LBFRegressor.h"
 
 using namespace cv;
 using namespace std;
 using namespace face_rec_srzn;
+using namespace BayesianModelNs;
 
+#define BVLENTH 160
 // parameters
 Params global_params;
 
@@ -229,6 +232,9 @@ void validate_on_lfw_data(void *recognizer) {
 
   bool gt;
   int fnum = 0;
+  BayesianModel BM("../../models/small/bayesianModel.bin");
+  double d1[BVLENGTH] = {0.f};
+  double d2[BVLENGTH] = {0.f};
   while (getline(pairs_file, line)) {
     // split line
     // vector<string> sline{"1","2"};
@@ -288,7 +294,13 @@ void validate_on_lfw_data(void *recognizer) {
         ExtractFaceFeatureFromMat(recognizer, face1_cropped);
     vector<float> face2_feature =
         ExtractFaceFeatureFromMat(recognizer, face2_cropped);
-    float distance = FaceDistance(recognizer, face1_feature, face2_feature);
+
+    for (int j = 0; j < BVLENGTH; j++) {
+      d1[j] = face1_feature[j];
+      d2[j] = face2_feature[j];
+    }
+    float distance = BM.CalcSimilarity(d1, d2, BVLENGTH);
+    //float distance = FaceDistance(recognizer, face1_feature, face2_feature);
     distance_vector.push_back(distance);
     gt_vector.push_back(gt);
     distance_file << distance << "\t" << gt << endl;
@@ -304,7 +316,7 @@ void validate_on_lfw_data(void *recognizer) {
     float thd = distance_vector[i];
     for (int j = 0; j < distance_vector.size(); ++j) {
       float dist = distance_vector[j];
-      if ((dist <= thd && gt_vector[j]) || (dist > thd && !gt_vector[j]))
+      if ((dist >= thd && gt_vector[j]) || (dist < thd && !gt_vector[j]))
         ++correct;
     }
     float precision = (float)correct / distance_vector.size();
@@ -317,31 +329,44 @@ void validate_on_lfw_data(void *recognizer) {
 }
 
 void validate_on_prepared_data(void *recognizer) {
-  // ifstream pair_file("../../lfw_data/BW100issame.txt");
-  ifstream pair_file("../../lfw_data/prepared_self.txt");
+  ifstream pair_file("../../lfw_data/BW100issame.txt");
+  // ifstream pair_file("../../lfw_data/prepared_self.txt");
   ofstream distance_file("distance_file.txt");
   vector<float> distance_vector;
   vector<bool> gt_vector;
 
   bool gt;
   int fnum = 0;
+  FILE *fid_face_features = fopen("face_pair_features.bin", "rb");
+  // FILE* fid_face_features = fopen("bw100feat_from_mat.bin", "rb");
+  float face1_feature[160];
+  float face2_feature[160];
+
+  BayesianModel BM("../../models/small/bayesianModel.bin");
+  double d1[BVLENGTH] = {0.f};
+  double d2[BVLENGTH] = {0.f};
+  //float distance = BM.CalcSimilarity(d1, d2, BVLENGTH);
+  //cout<<distance<<endl;
+  //return;
   while (pair_file >> gt) {
     // Load face images
     std::ostringstream face1_string_stream;
-    face1_string_stream << "../../lfw_data/faces_cropped/" << (fnum * 2 + 0)
-                        << ".jpg";
+    // face1_string_stream << "../../lfw_data/faces_cropped/" << (fnum * 2 + 0)
+    //<< ".jpg";
+    face1_string_stream << "../../lfw_data/100BW/" << (fnum * 2 + 1) << ".png";
     std::string face1_name = face1_string_stream.str();
     std::ostringstream face2_string_stream;
-    face2_string_stream << "../../lfw_data/faces_cropped/" << (fnum * 2 + 1)
-                        << ".jpg";
+    // face2_string_stream << "../../lfw_data/faces_cropped/" << (fnum * 2 + 1)
+    //<< ".jpg";
+    face2_string_stream << "../../lfw_data/100BW/" << (fnum * 2 + 2) << ".png";
     std::string face2_name = face2_string_stream.str();
     cout << face1_name << "\t" << face2_name << endl;
     // string face1_name =
     //(boost::format("../../lfw_data/224COLOR/%1%.png") % (fnum * 2 + 1)).str();
     // string face2_name =
     //(boost::format("../../lfw_data/224COLOR/%1%.png") % (fnum * 2 + 2)).str();
-    Mat face1 = imread(face1_name);
-    Mat face2 = imread(face2_name);
+    // Mat face1 = imread(face1_name);
+    // Mat face2 = imread(face2_name);
     // imshow("face1", face1);
     // imshow("face2", face2);
     // waitKey(1);
@@ -349,20 +374,35 @@ void validate_on_prepared_data(void *recognizer) {
     ////int64 start_tick = getTickCount();
 
     ////Extract feature from images
-    vector<float> face1_feature = ExtractFaceFeatureFromMat(recognizer, face1);
-    vector<float> face2_feature = ExtractFaceFeatureFromMat(recognizer, face2);
+    // vector<float> face1_feature = ExtractFaceFeatureFromMat(recognizer,
+    // face1);
+    // vector<float> face2_feature = ExtractFaceFeatureFromMat(recognizer,
+    // face2);
+
+    fread(&face1_feature, sizeof(float), 160, fid_face_features);
+    fread(&face2_feature, sizeof(float), 160, fid_face_features);
+
     // float sum = 0;
     // for (int i = 0; i < face1_feature.size(); i++) {
     // sum += (face1_feature[i] - face2_feature[i]) *
     //(face1_feature[i] - face2_feature[i]);
     //}
     // sum = sqrtf(sum);
-    float distance = FaceDistance(recognizer, face1_feature, face2_feature);
+
+    // float distance = FaceDistance(recognizer, face1_feature, face2_feature);
+
+    for (int j = 0; j < BVLENGTH; j++) {
+      d1[j] = face1_feature[j];
+      d2[j] = face2_feature[j];
+      // cout<<d1[j]<<"\t"<<d2[j]<<endl;
+    }
+    float distance = BM.CalcSimilarity(d1, d2, BVLENGTH);
+
     distance_vector.push_back(distance);
     gt_vector.push_back(gt);
     distance_file << distance << "\t" << gt << endl;
     ++fnum;
-    cout << "pair num: " << fnum << endl;
+    cout << "pair num: " << fnum << "\tdistacne: " << distance << endl;
   }
   distance_file.close();
 
@@ -373,7 +413,7 @@ void validate_on_prepared_data(void *recognizer) {
     float thd = distance_vector[i];
     for (int j = 0; j < distance_vector.size(); ++j) {
       float dist = distance_vector[j];
-      if ((dist <= thd && gt_vector[j]) || (dist > thd && !gt_vector[j]))
+      if ((dist >= thd && gt_vector[j]) || (dist < thd && !gt_vector[j]))
         ++correct;
     }
     float precision = (float)correct / distance_vector.size();
@@ -410,6 +450,6 @@ int main(int argc, char **argv) {
                      "../../models/small/similarity.bin");
 
   validate_on_lfw_data(recognizer);
-  // validate_on_prepared_data(recognizer);
+  //validate_on_prepared_data(recognizer);
   return 0;
 }

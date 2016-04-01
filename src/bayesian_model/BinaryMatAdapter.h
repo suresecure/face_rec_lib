@@ -1,5 +1,4 @@
-#ifndef HEADER_BINARYMATADAPTER
-#define HEADER_BINARYMATADAPTER
+#pragma once
 #include "opencv2/core/core.hpp"
 namespace BayesianModelNs{
 	class BinaryMatAdapter
@@ -14,4 +13,3 @@ namespace BayesianModelNs{
 	};
 
 }
-#endif

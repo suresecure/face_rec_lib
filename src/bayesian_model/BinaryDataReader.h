@@ -1,5 +1,4 @@
-#ifndef HEADER_BINARYDATAREADER
-#define HEADER_BINARYDATAREADER
+#pragma once
 #include "opencv2/core/core.hpp"
 #include <fstream>
 #include <sstream>
@@ -20,4 +19,3 @@ namespace BayesianModelNs{
 	};
 
 }
-#endif

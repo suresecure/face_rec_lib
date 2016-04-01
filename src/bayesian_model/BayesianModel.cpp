@@ -33,9 +33,11 @@ double BayesianModelNs::BayesianModel::CalcSimilarity(double* feature1,double* f
 	Mat feature2_mat = Mat(1,dimNumber,CV_64FC1,feature2);
 	Mat f1norm = feature1_mat-this->_mapping_mean;
 	Mat f2norm = feature2_mat-this->_mapping_mean;
+	f1norm = f1norm*this->_PCAModel.t();
+	f2norm = f2norm*this->_PCAModel.t();
 	
-	Mat t1=(f1norm-f2norm)*this->_mapping_A*(f1norm-f2norm).t();
-	Mat t2 = 2*f1norm*(this->_mapping_A-this->_mapping_G)*f2norm.t();
+	//Mat t1=(f1norm-f2norm)*this->_mapping_A*(f1norm-f2norm).t();
+	//Mat t2 = 2*f1norm*(this->_mapping_A-this->_mapping_G)*f2norm.t();
 
 	Mat similarityMat =  (f1norm-f2norm)*this->_mapping_A*(f1norm-f2norm).t()+2*f1norm*(this->_mapping_A-this->_mapping_G)*f2norm.t();
 	double similarity = similarityMat.at<double>(0);
@@ -69,6 +71,17 @@ void BayesianModelNs::BayesianModel::LoadFrom(const char* modelFile)
 	this->_mapping_Su= BinaryMatAdapter::GetCvMat(mappingSu,BVLENGTH,BVLENGTH);
 	this->_mapping_Sw= BinaryMatAdapter::GetCvMat(mappingSw,BVLENGTH,BVLENGTH);
 	this->_mapping_threshold= BinaryMatAdapter::GetCvMat(mappingA,1,1);
+
+	//FileStorage fs("mat.yml", FileStorage::WRITE);
+	//fs << "pcamodel" << this->_PCAModel;
+	//fs << "mapping_a" << this->_mapping_A;
+	//fs << "mapping_g" << this->_mapping_G;
+	//fs << "mapping_mean" << this->_mapping_mean;
+	//fs << "mapping_su" << this->_mapping_Su;
+	//fs << "mapping_sw" << this->_mapping_Sw;
+	//fs << "mapping_threshold" << this->_mapping_threshold;
+	//fs.release();
+
 	sf_model.close();
 
 }
