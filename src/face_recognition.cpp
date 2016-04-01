@@ -8,105 +8,170 @@
 #include <math.h>
 
 #include <glog/logging.h>
-#include "classifier.hpp"
 
 #include "face_recognition.hpp"
+#include "classifier.hpp"
 #include "BayesianModel.h"
+#include "LBF.h"
+#include "LBFRegressor.h"
+
+Params global_params;
+
+string modelPath;
+string dataPath;
 
 namespace face_rec_srzn {
 using namespace cv;
 using namespace std;
 using namespace BayesianModelNs;
-struct Recognizer {
-  Classifier *cnn_net;
-  BayesianModel *bayesian_model;
-};
 
-void *InitRecognizer(const string &cfgname, const string &modelname,
-                     const string &mean_file, const string &similarity_bin) {
-  Recognizer *recognizer = new Recognizer();
-  // caffe setting
+void ReadGlobalParamFromFile(string path) {
+  cout << "Loading GlobalParam..." << endl;
+  ifstream fin;
+  fin.open(path.c_str());
+  fin >> global_params.bagging_overlap;
+  fin >> global_params.max_numtrees;
+  fin >> global_params.max_depth;
+  fin >> global_params.max_numthreshs;
+  fin >> global_params.landmark_num;
+  fin >> global_params.initial_num;
+  fin >> global_params.max_numstage;
+
+  for (int i = 0; i < global_params.max_numstage; i++) {
+    fin >> global_params.max_radio_radius[i];
+  }
+
+  for (int i = 0; i < global_params.max_numstage; i++) {
+    fin >> global_params.max_numfeats[i];
+  }
+  cout << "Loading GlobalParam end" << endl;
+  fin.close();
+}
+
+LightFaceRecognizer::LightFaceRecognizer(
+    const string &cnn_model_path, const string &face_alignment_model_path,
+    const string &bayesian_model, bool use_gpu) {
   FLAGS_minloglevel = 3; // close INFO and WARNING level log
   ::google::InitGoogleLogging("SRZNFaceRecognitionLib");
-  recognizer->cnn_net = new Classifier(cfgname, modelname, mean_file);
-  //recognizer->bayesian_model = new BayesianModel(similarity_bin.c_str());
-  return (void *)recognizer;
-}
-vector<float> ExtractFaceFeatureFromImage(Mat face, Classifier *classifier) {
-  return classifier->extract_layer_by_name(face, "prob");
-  // return classifier->extract_layer_by_name(face, "fc7");
-}
-vector<float> ExtractFaceFeatureFromBuffer(void *rec, void *imgbuf, int w,
-                                           int h) {
-  Mat face_mat(h, w, CV_8UC3, imgbuf);
-  Recognizer *recognizer = (Recognizer *)rec;
-  return ExtractFaceFeatureFromImage(face_mat, recognizer->cnn_net);
-}
-vector<float> ExtractFaceFeatureFromMat(void *rec, cv::Mat img)
-{
-  Recognizer *recognizer = (Recognizer *)rec;
-  return ExtractFaceFeatureFromImage(img, recognizer->cnn_net);
-}
-float FaceDistance(void *rec, const vector<float> &face1_feature,
-                   const vector<float> &face2_feature) {
-  float distance = 0.f;
-  for (int i = 0; i < face1_feature.size(); i++) {
-    distance += (face1_feature[i] - face2_feature[i]) *
-           (face1_feature[i] - face2_feature[i]);
-  }
-  distance = sqrtf(distance);
-  return distance;
+  _conv_net = new Classifier(
+      cnn_model_path + "/small.prototxt", cnn_model_path + "/small.caffemodel",
+      cnn_model_path + "/small_mean_image.binaryproto", use_gpu);
+  modelPath = face_alignment_model_path;
+  ReadGlobalParamFromFile(modelPath + "/LBF.model");
+  LBFRegressor *regressor = new LBFRegressor();
+  regressor->Load(modelPath + "/LBF.model");
+  _alignment_regressor = regressor;
 
-  //Recognizer *recognizer = (Recognizer *)rec;
-  //BayesianModel *bayesian_model = recognizer->bayesian_model;
-  //float sum = 0;
-  //vector<double> face1(face1_feature.begin(), face1_feature.end());
-  //vector<double> face2(face2_feature.begin(), face2_feature.end());
-  //float distance = bayesian_model->CalcSimilarity(&face1[0], &face2[0], 160);
-  //return distance;
+  _bayesian_model = new BayesianModel(bayesian_model.c_str());
 }
-float FaceVerification(void *rec, const vector<float> &face1_feature,
-                       const vector<float> &face2_feature) {
-  Recognizer *recognizer = (Recognizer *)rec;
-  BayesianModel *bayesian_model = recognizer->bayesian_model;
-  float sum = 0;
-  vector<double> face1(face1_feature.begin(), face1_feature.end());
-  vector<double> face2(face2_feature.begin(), face2_feature.end());
-  float distance = bayesian_model->CalcSimilarity(&face1[0], &face2[0], 160);
-  // for (int i = 0; i < face1_feature.size(); i++) {
-  // sum += (face1_feature[i] - face2_feature[i]) *
-  //(face1_feature[i] - face2_feature[i]);
-  //}
-  // sum = sqrtf(sum);
+
+void LightFaceRecognizer::ExtractFaceFeature(const cv::Mat &img,
+                                             vector<float> &feature) {
+  Classifier *conv_net = (Classifier *)_conv_net;
+  conv_net->extract_layer_by_name(img, "prob", feature);
+  return;
+}
+
+// Face Alignment
+void LightFaceRecognizer::ImageAlign(const Mat &orig, Point2d leftEye,
+                                     Point2d rightEye, Mat &outputarray) {
+  int desiredFaceWidth = orig.cols;
+  int desiredFaceHeight = desiredFaceWidth;
+
+  // Get the center between the 2 eyes center-points
+  Point2f eyesCenter =
+      Point2f((leftEye.x + rightEye.x) * 0.5f, (leftEye.y + rightEye.y) * 0.5f);
+
+  // Get the angle between the line eyes and horizontal line.
+  double dy = (rightEye.y - leftEye.y);
+  double dx = (rightEye.x - leftEye.x);
+  double len = sqrt(dx * dx + dy * dy);
+  double angle =
+      atan2(dy, dx) * 180.0 / CV_PI; // Convert from radians to degrees.
+  double scale = 1;
+  // Get the transformation matrix for rotating and scaling the face to the
+  // desired angle & size.
+  Mat rot_mat = getRotationMatrix2D(eyesCenter, angle, scale);
+  outputarray.create(desiredFaceHeight, desiredFaceWidth, CV_8UC3);
+  warpAffine(orig, outputarray, rot_mat, outputarray.size());
+  return;
+}
+
+void LightFaceRecognizer::FaceAlign(const Mat &img, const Rect face_rect,
+                                    Mat &aligned_img) {
+  LBFRegressor *regressor = (LBFRegressor *)_alignment_regressor;
+
+  // --Alignment
+  BoundingBox boundingbox;
+
+  boundingbox.start_x = face_rect.x;
+  boundingbox.start_y = face_rect.y;
+  boundingbox.width = face_rect.width;
+  boundingbox.height = face_rect.height;
+  boundingbox.centroid_x = boundingbox.start_x + boundingbox.width / 2.0;
+  boundingbox.centroid_y = boundingbox.start_y + boundingbox.height / 2.0;
+  Rect origin_max_face(boundingbox.start_x, boundingbox.start_y,
+                       boundingbox.width, boundingbox.height);
+
+  Mat_<double> current_shape = regressor->Predict(img, boundingbox, 1);
+  Mat after_aligned;
+  ImageAlign(img, Point2d(current_shape(36, 0), current_shape(36, 1)),
+             Point2d(current_shape(45, 0), current_shape(45, 1)), aligned_img);
+  return;
+}
+
+void LightFaceRecognizer::CropFace(const cv::Mat &img, const Rect face_rect,
+                                   Rect &cropped_face_rect) {
+  float scale = 0.55f;
+  float scale_top_ratio = 0.3f;
+  int w = face_rect.width;
+  int h = face_rect.height;
+  int s = std::max(w, h);
+  int x = face_rect.x - (s - w) * 0.5f;
+  int y = face_rect.y - (s - h) * 0.5f;
+  int left_dist = x;
+  int right_dist = img.cols - x - s;
+  int hor_min_dist = std::min(left_dist, right_dist);
+  int top_dist = y;
+  int bot_dist = img.rows - y - s;
+  int max_hor_padding = hor_min_dist * 2;
+  int max_ver_padding = std::min(top_dist, (int)(bot_dist * scale_top_ratio /
+                                                 (1.f - scale_top_ratio))) *
+                        2;
+  int max_padding = std::min(max_hor_padding, max_ver_padding);
+  int padding = std::min(max_padding, (int)(s * scale));
+  x = x - padding / 2;
+  y = y - padding * scale_top_ratio;
+  s = s + padding;
+
+  cropped_face_rect = Rect(x, y, s, s);
+}
+
+float LightFaceRecognizer::CalculateDistance(const vector<float> &feature1,
+                                             const vector<float> &feature2) {
+  BayesianModel *bayesian_model = (BayesianModel *)_bayesian_model;
+  double d1[BVLENGTH] = {0.f};
+  double d2[BVLENGTH] = {0.f};
+  for (int j = 0; j < BVLENGTH; j++) {
+    d1[j] = feature1[j];
+    d2[j] = feature2[j];
+  }
+  return bayesian_model->CalcSimilarity(d1, d2, BVLENGTH);
+}
+float LightFaceRecognizer::CalculateSimilarity(const vector<float> &feature1,
+                                               const vector<float> &feature2) {
+  float distance = CalculateDistance(feature1, feature2);
   float best_distance = 0;
   float range = 0.f;
-  // if (face1_feature.size() == 160) {
-  best_distance = 54.61f;
-  range = 10.f;
-
+  // best_distance = 54.61f;
+  // range = 10.f;
   best_distance = -21.2243f;
   range = 20.f;
-  //} else if (face1_feature.size() == 4096) {
-  // best_distance = 0;
-  // range = 100.f;
-  //} else
-  // return false;
-  // if (sum <= min_distance)
-  // return 1.0f;
-  // else if (sum >= max_distance)
-  // return 0.0f;
-  // else
-  float similarity = 0.9f - (sum - best_distance) / range;
+  float similarity = 0.9f + (distance - best_distance) / range;
   if (similarity < 0.f)
     similarity = 0.f;
   else if (similarity > 1.0f)
     similarity = 1.0f;
   return similarity;
-}
-void ReleaseRecognizer(void *rec) {
-  Recognizer *recognizer = (Recognizer *)rec;
-  delete recognizer->cnn_net;
-  delete recognizer->bayesian_model;
-  delete recognizer;
 }
 }

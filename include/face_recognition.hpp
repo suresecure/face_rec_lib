@@ -11,16 +11,46 @@
 
 namespace face_rec_srzn {
 using namespace std;
-// string GetVersion();
-void *InitRecognizer(const string &cfgname, const string &modelname,
-                     const string &mean_file, const string &similarity_bin);
-vector<float> ExtractFaceFeatureFromBuffer(void *recognizer, void *imgbuf,
-                                           int w, int h);
-vector<float> ExtractFaceFeatureFromMat(void *recognizer, cv::Mat img);
-float FaceDistance(void *rec, const vector<float> &face1_feature,
-                    const vector<float> &face2_feature);
-float FaceVerification(void *rec, const vector<float> &face1_feature,
-                       const vector<float> &face2_feature);
-void ReleaseRecognizer(void *recognizer);
+using namespace cv;
+
+class LightFaceRecognizer {
+public:
+  LightFaceRecognizer(const string &cnn_model_path,
+                      const string &face_alignment_model_path,
+                      const string &bayesian_model, bool use_gpu = true);
+  void ExtractFaceFeature(const cv::Mat &, vector<float> &);
+  void FaceAlign(const cv::Mat &img, const Rect face_rect, cv::Mat &out_img);
+  void CropFace(const cv::Mat &img, const Rect face_rect,
+                Rect &cropped_face_rect);
+  float CalculateDistance(const vector<float> &feature1,
+                          const vector<float> &feature2);
+  float CalculateSimilarity(const vector<float> &feature1,
+                            const vector<float> &feature2);
+
+private:
+  void ImageAlign(const Mat &orig, Point2d leftEye, Point2d rightEye,
+                  Mat &outputarray);
+  void *_conv_net;
+  void *_alignment_regressor;
+  void *_bayesian_model;
+};
+
+// class HeavyFaceRecognizer {
+// public:
+// HeavyFaceRecognizer(const string &cnn_model_path, bool use_gpu = true);
+// void ExtractFaceFeature(const cv::Mat&, vector<float>&);
+// float CalculateDistance(const vector<float>&, const vector<float>&);
+// float CalculateSimilarity(const vector<float>&, const vector<float>&);
+
+// private:
+// void *_conv_net;
+//};
+/* Copy the FC7 layer to a std::vector */
+// string feature_layer_name = layer_name;
+// if (net_->name() == "small_face")
+// feature_layer_name = "prob";
+// else if (net_->name() == "big_16_layers_face")
+// feature_layer_name = "fc6";
+//
 }
 #endif

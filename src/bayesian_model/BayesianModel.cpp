@@ -8,6 +8,7 @@
 using namespace BayesianModelNs;
 using namespace cv;
 
+
 BayesianModelNs::BayesianModel::BayesianModel(const char *modelFile)
 {
 	this->LoadFrom(modelFile);

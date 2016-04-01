@@ -60,23 +60,22 @@ if(OPENMP_FOUND)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
 endif()
 
-#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-add_executable(lfw_val 
-  src/face_recognition.cpp 
-  src/bayesian_model/BayesianModel.cpp
-  lfw_val/lfw_val.cpp 
-  ${alignment_source}
-  config.h.in)
-#target_include_directories (lfw_val PRIVATE ./include )
-target_link_libraries(lfw_val face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS})
 
 add_library (face_rec_srzn SHARED 
   src/face_recognition.cpp
+  src/classifier.cpp
   src/bayesian_model/BayesianModel.cpp
   include/face_recognition.hpp 
   config.h.in)
 #target_include_directories (face_rec_srzn PUBLIC ./include )
 target_link_libraries(face_rec_srzn ${Caffe_LIBRARIES})
+
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+add_executable(lfw_val 
+  lfw_val/lfw_val.cpp)
+  
+#target_include_directories (lfw_val PRIVATE ./include )
+target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS})
 
 set_target_properties(face_rec_srzn PROPERTIES
   PUBLIC_HEADER "include/face_recognition.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
