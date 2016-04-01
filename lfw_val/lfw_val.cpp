@@ -126,23 +126,9 @@ void validate_on_lfw_data(void *recognizer) {
   cout << "Max precision: " << max_precision << "\tThd: " << max_thd << endl;
 }
 
-int main(int argc, char **argv) {
-  // Init Recognizer
-  // void *recognizer = InitRecognizer("../../models/big/big.prototxt",
-  //"../../models/big/big.caffemodel", "");
-  void *recognizer =
-      InitRecognizer("../../models/small/small.prototxt",
-                     "../../models/small/small.caffemodel",
-                     "../../models/small/small_mean_image.binaryproto",
-                     "../../models/small/similarity.bin");
-
-  validate_on_lfw_data(recognizer);
-  return 0;
-}
-
 void validate_on_prepared_data(void *recognizer) {
-  ifstream pair_file("../../lfw_data/BW100issame.txt");
-  // ifstream pair_file("../../lfw_data/COLOR224issame.txt");
+  //ifstream pair_file("../../lfw_data/BW100issame.txt");
+  ifstream pair_file("../../lfw_data/prepared_self.txt");
   ofstream distance_file("distance_file.txt");
   vector<float> distance_vector;
   vector<bool> gt_vector;
@@ -152,25 +138,29 @@ void validate_on_prepared_data(void *recognizer) {
   while (pair_file >> gt) {
     // Load face images
     std::ostringstream face1_string_stream;
-    face1_string_stream << "../../lfw_data/100BW/" << (fnum * 2 + 1) << ".png";
+    face1_string_stream << "../../lfw_data/faces_cropped/" << (fnum * 2 + 0) << ".jpg";
     std::string face1_name = face1_string_stream.str();
     std::ostringstream face2_string_stream;
-    face1_string_stream << "../../lfw_data/100BW/" << (fnum * 2 + 2) << ".png";
+    face2_string_stream << "../../lfw_data/faces_cropped/" << (fnum * 2 + 1) << ".jpg";
     std::string face2_name = face2_string_stream.str();
+    cout<<face1_name<<"\t"<<face2_name<<endl;
     // string face1_name =
     //(boost::format("../../lfw_data/224COLOR/%1%.png") % (fnum * 2 + 1)).str();
     // string face2_name =
     //(boost::format("../../lfw_data/224COLOR/%1%.png") % (fnum * 2 + 2)).str();
     Mat face1 = imread(face1_name);
     Mat face2 = imread(face2_name);
+    //imshow("face1", face1);
+    //imshow("face2", face2);
+    //waitKey(1);
     //// compute frame per second (fps)
     ////int64 start_tick = getTickCount();
 
     ////Extract feature from images
-    vector<float> face1_feature = ExtractFaceFeatureFromBuffer(
-        recognizer, face1.data, face1.cols, face1.rows);
-    vector<float> face2_feature = ExtractFaceFeatureFromBuffer(
-        recognizer, face2.data, face2.cols, face2.rows);
+    vector<float> face1_feature = ExtractFaceFeatureFromMat(
+        recognizer, face1);
+    vector<float> face2_feature = ExtractFaceFeatureFromMat(
+        recognizer, face2);
     // float sum = 0;
     // for (int i = 0; i < face1_feature.size(); i++) {
     // sum += (face1_feature[i] - face2_feature[i]) *
@@ -180,7 +170,7 @@ void validate_on_prepared_data(void *recognizer) {
     float distance = FaceDistance(recognizer, face1_feature, face2_feature);
     distance_vector.push_back(distance);
     gt_vector.push_back(gt);
-    distance_file << sum << "\t" << gt << endl;
+    distance_file << distance << "\t" << gt << endl;
     ++fnum;
     cout << "pair num: " << fnum << endl;
   }
@@ -218,3 +208,19 @@ void validate_on_prepared_data(void *recognizer) {
   // imshow("face3", face3);
   // waitKey(0);
 }
+
+int main(int argc, char **argv) {
+  // Init Recognizer
+  // void *recognizer = InitRecognizer("../../models/big/big.prototxt",
+  //"../../models/big/big.caffemodel", "");
+  void *recognizer =
+      InitRecognizer("../../models/small/small.prototxt",
+                     "../../models/small/small.caffemodel",
+                     "../../models/small/small_mean_image.binaryproto",
+                     "../../models/small/similarity.bin");
+
+  //validate_on_lfw_data(recognizer);
+  validate_on_prepared_data(recognizer);
+  return 0;
+}
+
