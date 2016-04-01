@@ -37,23 +37,38 @@ include_directories(
   #endif()
 #endforeach()
 
-find_package(Caffe)
+find_package(Caffe REQUIRED)
 include_directories(${Caffe_INCLUDE_DIRS})
 include_directories(include)
+include_directories(face_alignment)
 include_directories(src/bayesian_model)
 add_definitions(${Caffe_DEFINITIONS})    
 
-#message(${Caffe_INCLUDE_DIRS})
+find_package(OpenCV REQUIRED)
+include_directories(${OpenCV_INCLUDE_DIRS})
 
 configure_file(config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY)
 
+FIND_PACKAGE( OpenMP REQUIRED)
+
+add_subdirectory(face_alignment/align)
+
+if(OPENMP_FOUND)
+    message("OPENMP FOUND")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_C_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
+endif()
+
+#set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 add_executable(lfw_val 
   src/face_recognition.cpp 
   src/bayesian_model/BayesianModel.cpp
   lfw_val/lfw_val.cpp 
+  ${alignment_source}
   config.h.in)
-target_include_directories (lfw_val PRIVATE ./include )
-target_link_libraries(lfw_val ${Caffe_LIBRARIES})
+#target_include_directories (lfw_val PRIVATE ./include )
+target_link_libraries(lfw_val face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS})
 
 add_library (face_rec_srzn SHARED 
   src/face_recognition.cpp
@@ -83,46 +98,3 @@ install(FILES lfw_test/lfw_test.cpp
 install(FILES caffe_lib/libcaffe.so
   caffe_lib/libcaffe.so.1.0.0-rc3
   DESTINATION lib)
-
-#INSTALL(TARGETS face_rec_srzn 
-#RUNTIME DESTINATION bin
-#LIBRARY DESTINATION lib
-#PUBLIC_HEADER DESTINATION include
-#)
-
-## The interesting stuff goes here
-## ===============================
-
-## Add all targets to the build-tree export set
-#export(TARGETS face_rec_srzn
-#FILE "${PROJECT_BINARY_DIR}/FaceRecSrznTargets.cmake")
-
-## Export the package for use from the build-tree
-## (this registers the build-tree with a global CMake-registry)
-#export(PACKAGE FaceRecSrzn)
-
-## Create the FooBarConfig.cmake and FooBarConfigVersion files
-#file(RELATIVE_PATH REL_INCLUDE_DIR "${INSTALL_CMAKE_DIR}"
-#"${INSTALL_INCLUDE_DIR}")
-## ... for the build tree
-#set(CONF_INCLUDE_DIRS "${PROJECT_SOURCE_DIR}" "${PROJECT_BINARY_DIR}")
-#configure_file(FaceRecSrznConfig.cmake.in
-#"${PROJECT_BINARY_DIR}/FaceRecSrznConfig.cmake" @ONLY)
-## ... for the install tree
-#set(CONF_INCLUDE_DIRS "\${FaceRecSrzn_CMAKE_DIR}/${REL_INCLUDE_DIR}")
-#configure_file(FaceRecSrznConfig.cmake.in
-#"${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/FaceRecSrznConfig.cmake" @ONLY)
-## ... for both
-#configure_file(FaceRecSrznConfigVersion.cmake.in
-#"${PROJECT_BINARY_DIR}/FaceRecSrznConfigVersion.cmake" @ONLY)
-
-## Install the FooBarConfig.cmake and FooBarConfigVersion.cmake
-#install(FILES
-#"${PROJECT_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/FaceRecSrznConfig.cmake"
-#"${PROJECT_BINARY_DIR}/FaceRecSrznConfigVersion.cmake"
-#DESTINATION "${INSTALL_CMAKE_DIR}" COMPONENT dev)
-
-## Install the export set for use with the install-tree
-#install(EXPORT FaceRecSrznTargets DESTINATION
-#"${INSTALL_CMAKE_DIR}" COMPONENT dev)
-
