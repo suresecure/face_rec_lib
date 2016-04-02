@@ -68,7 +68,7 @@ add_library (face_rec_srzn SHARED
   include/face_recognition.hpp 
   config.h.in)
 #target_include_directories (face_rec_srzn PUBLIC ./include )
-target_link_libraries(face_rec_srzn ${Caffe_LIBRARIES})
+target_link_libraries(face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES})
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 add_executable(lfw_val 
@@ -81,9 +81,11 @@ set_target_properties(face_rec_srzn PROPERTIES
   PUBLIC_HEADER "include/face_recognition.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
   VERSION ${FaceRecSrzn_VERSION})
 
+add_subdirectory(lfw_test)
+
 #FRAMEWORK ON
 #SOVERSION 0
-install(TARGETS face_rec_srzn
+install(TARGETS face_rec_srzn 
   # IMPORTANT: Add the foo library to the "export-set"
   #EXPORT FaceRecSrznTargets
   RUNTIME DESTINATION "bin" COMPONENT bin
@@ -93,6 +95,7 @@ install(TARGETS face_rec_srzn
 
 install(FILES lfw_test/lfw_test.cpp
   lfw_test/CMakeLists.txt
+  lfw_test/haarcascade_frontalface_alt.xml
   DESTINATION lfw_test)
 install(FILES caffe_lib/libcaffe.so
   caffe_lib/libcaffe.so.1.0.0-rc3

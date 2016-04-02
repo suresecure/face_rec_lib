@@ -1,7 +1,6 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp>
-
+#include <opencv2/highgui/highgui.hpp> 
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
@@ -165,9 +164,10 @@ float LightFaceRecognizer::CalculateSimilarity(const vector<float> &feature1,
   float range = 0.f;
   // best_distance = 54.61f;
   // range = 10.f;
-  best_distance = -21.2243f;
+  //best_distance = -21.2243f;
+  best_distance = -28.761;
   range = 20.f;
-  float similarity = 0.9f + (distance - best_distance) / range;
+  float similarity = 0.5f + (distance - best_distance) / range;
   if (similarity < 0.f)
     similarity = 0.f;
   else if (similarity > 1.0f)

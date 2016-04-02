@@ -290,8 +290,8 @@ int main(int argc, char **argv) {
   // void *recognizer = InitRecognizer("../../models/big/big.prototxt",
   //"../../models/big/big.caffemodel", "");
   LightFaceRecognizer recognizer(
-      "../../model_cnn/small", "../../model_face_alignment",
-      "../../model_bayesian/bayesian_model_lfw.bin", false);
+      "../../face_rec_models/model_cnn/small", "../../face_rec_models/model_face_alignment",
+      "../../face_rec_models/model_bayesian/bayesian_model_lfw.bin", false);
 
   validate_on_lfw_data(recognizer);
   //validate_on_prepared_data(recognizer);
