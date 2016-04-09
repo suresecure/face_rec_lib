@@ -1,6 +1,6 @@
 #include <opencv2/core/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
-#include <opencv2/highgui/highgui.hpp> 
+#include <opencv2/highgui/highgui.hpp>
 #include <stdio.h>
 #include <iostream>
 #include <fstream>
@@ -164,7 +164,7 @@ float LightFaceRecognizer::CalculateSimilarity(const vector<float> &feature1,
   float range = 0.f;
   // best_distance = 54.61f;
   // range = 10.f;
-  //best_distance = -21.2243f;
+  // best_distance = -21.2243f;
   best_distance = -28.761;
   range = 20.f;
   float similarity = 0.5f + (distance - best_distance) / range;
@@ -173,5 +173,35 @@ float LightFaceRecognizer::CalculateSimilarity(const vector<float> &feature1,
   else if (similarity > 1.0f)
     similarity = 1.0f;
   return similarity;
+}
+
+//HeavyFaceRecognizer
+HeavyFaceRecognizer::HeavyFaceRecognizer(const string &cnn_model_path,
+                                         bool use_gpu) {
+  FLAGS_minloglevel = 3; // close INFO and WARNING level log
+  ::google::InitGoogleLogging("SRZNFaceRecognitionLib");
+  _conv_net =
+      new Classifier(cnn_model_path + "/big.prototxt",
+                     cnn_model_path + "/big.caffemodel", string(), use_gpu);
+}
+void HeavyFaceRecognizer::ExtractFaceFeature(const cv::Mat &img,
+                                        vector<float> &feature) {
+  vector<float> feat, feat_flip;
+  Classifier *conv_net = (Classifier *)_conv_net;
+  conv_net->extract_layer_by_name(img, "fc7", feat);
+  cv::Mat img_flip;
+  cv::flip(img, img_flip, 1);
+  conv_net->extract_layer_by_name(img_flip, "fc7", feat_flip);
+  for (int i = 0; i < feat.size(); ++i)
+    feat[i] = (feat[i] + feat_flip[i]) * 0.5f;
+  feature = feat;
+  return;
+}
+float HeavyFaceRecognizer::CalculateDistance(const vector<float> &a,
+                                             const vector<float> &b) {
+  float sum = 0.f;
+  for (int i = 0; i < a.size(); ++i)
+    sum += a[i] * b[i];
+  return sqrt(sum);
 }
 }

@@ -35,22 +35,20 @@ private:
   void *_bayesian_model;
 };
 
-// class HeavyFaceRecognizer {
-// public:
-// HeavyFaceRecognizer(const string &cnn_model_path, bool use_gpu = true);
-// void ExtractFaceFeature(const cv::Mat&, vector<float>&);
-// float CalculateDistance(const vector<float>&, const vector<float>&);
-// float CalculateSimilarity(const vector<float>&, const vector<float>&);
+class HeavyFaceRecognizer {
+public:
+  HeavyFaceRecognizer(const string &cnn_model_path, bool use_gpu = true);
+  void ExtractFaceFeature(const cv::Mat &, vector<float> &);
+  float CalculateDistance(const vector<float> &, const vector<float> &);
+  float CalculateSimilarity(const vector<float> &, const vector<float> &);
 
-// private:
-// void *_conv_net;
-//};
-/* Copy the FC7 layer to a std::vector */
-// string feature_layer_name = layer_name;
+private:
+  void *_conv_net;
+};
+// Copy the FC7 layer to a std::vector string feature_layer_name = layer_name;
 // if (net_->name() == "small_face")
 // feature_layer_name = "prob";
 // else if (net_->name() == "big_16_layers_face")
 // feature_layer_name = "fc6";
-//
 }
 #endif
