@@ -15,6 +15,7 @@
 namespace face_rec_srzn {
 using namespace caffe; // NOLINT(build/namespaces)
 using namespace std;
+using namespace cv;
 
 Classifier::Classifier(const string &model_file, const string &trained_file,
                        const string &mean_file, bool use_gpu) {
@@ -90,11 +91,16 @@ void Classifier::SetMean(const string &mean_file) {
   // cv::Scalar channel_mean = cv::mean(mean);
   // mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
   mean_ = mean;
+  //std::cout<<mean.at<float>(0,0)<<endl;;
+  //cv::imshow("mean", mean);
+  //cv::imwrite("mean.png", mean);
+  cv::waitKey(0);
 }
 
 void Classifier::extract_layer_by_name(const cv::Mat &img,
                                        const string &layer_name,
-                                       vector<float> &feature) {
+                                       //vector<float> &feature) {
+                                       Mat &feature) {
   Blob<float> *input_layer = net_->input_blobs()[0];
   input_layer->Reshape(1, num_channels_, input_geometry_.height,
                        input_geometry_.width);
@@ -111,8 +117,10 @@ void Classifier::extract_layer_by_name(const cv::Mat &img,
   const boost::shared_ptr<Blob<float> > feature_blob =
       net_->blob_by_name(layer_name);
   const float *begin = feature_blob->cpu_data();
-  const float *end = feature_blob->cpu_data() + feature_blob->count();
-  feature = std::vector<float>(begin, end);
+  //const float *end = feature_blob->cpu_data() + feature_blob->count();
+  //feature = std::vector<float>(begin, end);
+  feature = Mat(1, feature_blob->count(), CV_32F);
+  memcpy(feature.data, begin, sizeof(float)*feature_blob->count());
   return;
 }
 

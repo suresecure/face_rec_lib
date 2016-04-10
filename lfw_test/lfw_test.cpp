@@ -157,8 +157,8 @@ void validate_on_lfw_data(LightFaceRecognizer &recognizer) {
     Mat face2_cropped = detectAlignCrop(face2, cascade, recognizer);
 
     ////Extract feature from images
-    vector<float> face1_feature;
-    vector<float> face2_feature;
+    Mat face1_feature;
+    Mat face2_feature;
     recognizer.ExtractFaceFeature(face1_cropped, face1_feature);
     recognizer.ExtractFaceFeature(face2_cropped, face2_feature);
 
@@ -190,8 +190,8 @@ void validate_on_prepared_data(LightFaceRecognizer &recognizer) {
     std::string face2_name = face2_string_stream.str();
     cout << face1_name << "\t" << face2_name << endl;
 
-    vector<float> face1_feature;
-    vector<float> face2_feature;
+    Mat face1_feature;
+    Mat face2_feature;
     Mat face1 = imread(face1_name);
     Mat face2 = imread(face2_name);
     recognizer.ExtractFaceFeature(face1, face1_feature);
@@ -214,7 +214,7 @@ int main(int argc, char **argv) {
   //"../../models/big/big.caffemodel", "");
   LightFaceRecognizer recognizer(
       "../../../face_rec_models/model_cnn/small", "../../../face_rec_models/model_face_alignment",
-      "../../../face_rec_models/model_bayesian/bayesian_model_lfw.bin", false);
+      "../../../face_rec_models/model_bayesian/bayesian_model_lfw.bin", "prob", false);
 
   validate_on_lfw_data(recognizer);
   // validate_on_prepared_data(recognizer);

@@ -15,6 +15,7 @@
 namespace face_rec_srzn {
 using namespace caffe; // NOLINT(build/namespaces)
 using namespace std;
+using namespace cv;
 
 class Classifier {
 public:
@@ -22,7 +23,8 @@ public:
              const string &mean_file = string(), bool use_gpu = true);
 
   void extract_layer_by_name(const cv::Mat &img, const string &layer_name,
-                             vector<float> &feature);
+                             Mat &feature);
+                             //vector<float> &feature);
 
 private:
   void SetMean(cv::Scalar channel_mean); // set mean by value
