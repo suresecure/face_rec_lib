@@ -47,53 +47,56 @@ Rect FindMaxFace(const vector<Rect> &faces) {
 Mat detectAlignCrop(Mat &img, CascadeClassifier &cascade,
                     LightFaceRecognizer &recognizer) {
   vector<Rect> faces;
-  Mat gray;
+  Mat gray, gray_org;
 
-  cvtColor(img, gray, CV_BGR2GRAY);
-  equalizeHist(gray, gray);
+  cvtColor(img, gray_org, CV_BGR2GRAY);
+  //equalizeHist(gray_org, gray);
 
-  // --Detection
-  cascade.detectMultiScale(gray, faces, 1.1, 2,
-                           0
-                               //|CV_HAAR_FIND_BIGGEST_OBJECT
-                               //|CV_HAAR_DO_ROUGH_SEARCH
-                               |
-                               CV_HAAR_SCALE_IMAGE,
-                           Size(30, 30));
-  if (faces.size() <= 0) {
-    cout << "Cannot detect face!\n";
-    Rect face_rect(68, 68, 113, 113);
-    Rect out_rect;
-    recognizer.CropFace(img, face_rect, out_rect);
-    return Mat(img, out_rect);
-  }
-
+  //// --Detection
+  //cascade.detectMultiScale(gray, faces, 1.1, 2,
+                           //0
+                               ////|CV_HAAR_FIND_BIGGEST_OBJECT
+                               ////|CV_HAAR_DO_ROUGH_SEARCH
+                               //|
+                               //CV_HAAR_SCALE_IMAGE,
+                           //Size(30, 30));
+  Rect max_face;
+  //if (faces.size() <= 0) {
+    //cout << "Cannot detect face!\n";
+    max_face = Rect(68, 68, 113, 113);
+  //}
+  //else
+    //max_face = FindMaxFace(faces);
+  Rect out_rect;
+  recognizer.CropFace(gray_org, max_face, out_rect);
+  return Mat(gray_org, out_rect);
   // --Alignment
-  Rect max_face = FindMaxFace(faces);
+  //Rect max_face = FindMaxFace(faces);
 
-  Mat after_aligned;
-  recognizer.FaceAlign(gray, max_face, after_aligned);
+  //Mat after_aligned, after_aligned_org;
+  //recognizer.FaceAlign(gray_org, max_face, after_aligned_org);
+  //equalizeHist(after_aligned_org, after_aligned);
 
-  // detect faces on aligned image again
-  cascade.detectMultiScale(after_aligned, faces, 1.1, 2,
-                           0
-                               //|CV_HAAR_FIND_BIGGEST_OBJECT
-                               //|CV_HAAR_DO_ROUGH_SEARCH
-                               |
-                               CV_HAAR_SCALE_IMAGE,
-                           Size(30, 30));
+  //// detect faces on aligned image again
+  //cascade.detectMultiScale(after_aligned, faces, 1.1, 2,
+                           //0
+                               ////|CV_HAAR_FIND_BIGGEST_OBJECT
+                               ////|CV_HAAR_DO_ROUGH_SEARCH
+                               //|
+                               //CV_HAAR_SCALE_IMAGE,
+                           //Size(30, 30));
 
-  if (faces.size() <= 0) {
-    cout << "Cannot detect face after aligned!\n";
-    Rect face_rect(68, 68, 113, 113);
-    Rect out_rect;
-    recognizer.CropFace(img, face_rect, out_rect);
-    return Mat(img, out_rect);
-  }
-  max_face = FindMaxFace(faces);
-  Rect roi;
-  recognizer.CropFace(gray, max_face, roi);
-  return Mat(after_aligned, roi);
+  //if (faces.size() <= 0) {
+    //cout << "Cannot detect face after aligned!\n";
+    //Rect face_rect(68, 68, 113, 113);
+    //Rect out_rect;
+    //recognizer.CropFace(img, face_rect, out_rect);
+    //return Mat(img, out_rect);
+  //}
+  //max_face = FindMaxFace(faces);
+  //Rect roi;
+  //recognizer.CropFace(gray, max_face, roi);
+  //return Mat(after_aligned_org, roi);
 }
 
 void validate_on_lfw_data(LightFaceRecognizer &recognizer) {
@@ -216,7 +219,7 @@ int main(int argc, char **argv) {
       "../../../face_rec_models/model_cnn/small", "../../../face_rec_models/model_face_alignment",
       "../../../face_rec_models/model_bayesian/bayesian_model_lfw.bin", "prob", false);
 
-  validate_on_lfw_data(recognizer);
-  // validate_on_prepared_data(recognizer);
+  //validate_on_lfw_data(recognizer);
+  validate_on_prepared_data(recognizer);
   return 0;
 }

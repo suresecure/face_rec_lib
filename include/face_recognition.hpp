@@ -69,10 +69,5 @@ public:
 private:
   void *_conv_net;
 };
-// Copy the FC7 layer to a std::vector string feature_layer_name = layer_name;
-// if (net_->name() == "small_face")
-// feature_layer_name = "prob";
-// else if (net_->name() == "big_16_layers_face")
-// feature_layer_name = "fc6";
 }
 #endif

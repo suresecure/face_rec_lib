@@ -14,6 +14,8 @@
 #include "LBF.h"
 #include "LBFRegressor.h"
 
+//#define USE_LIGHT_MEAN_IMAGE
+
 Params global_params;
 
 string modelPath;
@@ -53,9 +55,15 @@ LightFaceRecognizer::LightFaceRecognizer(
     : _feature_name(feature_name) {
   FLAGS_minloglevel = 3; // close INFO and WARNING level log
   ::google::InitGoogleLogging("SRZNFaceRecognitionLib");
+#ifdef USE_LIGHT_MEAN_IMAGE
   _conv_net = new Classifier(
       cnn_model_path + "/small.prototxt", cnn_model_path + "/small.caffemodel",
       cnn_model_path + "/small_mean_image.binaryproto", use_gpu);
+#else
+  _conv_net = new Classifier(
+      cnn_model_path + "/small.prototxt", cnn_model_path + "/small.caffemodel",
+      string(), use_gpu);
+#endif
   modelPath = face_alignment_model_path;
   ReadGlobalParamFromFile(modelPath + "/LBF.model");
   LBFRegressor *regressor = new LBFRegressor();
@@ -121,8 +129,13 @@ void LightFaceRecognizer::FaceAlign(const Mat &img, const Rect face_rect,
 
 void LightFaceRecognizer::CropFace(const cv::Mat &img, const Rect face_rect,
                                    Rect &cropped_face_rect) {
+//#ifdef USE_LIGHT_MEAN_IMAGE
   float scale = 0.55f;
   float scale_top_ratio = 0.3f;
+//#else
+  //float scale = 0.2f;
+  //float scale_top_ratio = 0.5f;
+//#endif
   int w = face_rect.width;
   int h = face_rect.height;
   int s = std::max(w, h);
@@ -172,14 +185,16 @@ float LightFaceRecognizer::CalculateCosDistance(const Mat &feature1,
 }
 float LightFaceRecognizer::CalculateSimilarity(const Mat &feature1,
                                                const Mat &feature2) {
-  float distance = CalculateDistance(feature1, feature2);
+  //float distance = CalculateDistance(feature1, feature2);
+  float distance = CalculateCosDistance(feature1, feature2);
   float best_distance = 0;
   float range = 0.f;
   // best_distance = 54.61f;
   // range = 10.f;
   // best_distance = -21.2243f;
-  best_distance = -28.761;
-  range = 20.f;
+  //best_distance = -28.761;
+  best_distance = 0.376177;
+  range = 0.5f;
   float similarity = 0.5f + (distance - best_distance) / range;
   if (similarity < 0.f)
     similarity = 0.f;

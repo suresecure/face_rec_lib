@@ -3,7 +3,7 @@ project (face_recognition_srzn)
 
 set(FaceRecSrzn_MAJOR_VERSION 1)
 set(FaceRecSrzn_MINOR_VERSION 0)
-set(FaceRecSrzn_PATCH_VERSION 4)
+set(FaceRecSrzn_PATCH_VERSION 5)
 set(FaceRecSrzn_VERSION
   ${FaceRecSrzn_MAJOR_VERSION}.${FaceRecSrzn_MINOR_VERSION}.${FaceRecSrzn_PATCH_VERSION})
 

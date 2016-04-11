@@ -41,15 +41,24 @@ Classifier::Classifier(const string &model_file, const string &trained_file,
       << "Input layer should have 1 or 3 channels.";
   input_geometry_ = cv::Size(input_layer->width(), input_layer->height());
 
-  if (!mean_file.empty())
+  if (!mean_file.empty()) {
     SetMean(mean_file);
-  else {
+  } else {
     // cv::Scalar channel_mean(129.1863, 104.7624, 93.5940); // mean image
     // (constant) valuei per channel
-    cv::Scalar channel_mean(
-        93.5940, 104.7624,
-        129.1863); // mean image (constant) valuei per channel
-    SetMean(channel_mean);
+    // SetMean(channel_mean);
+    if (num_channels_ == 3) {
+      // mean_ =
+      // cv::Mat(input_geometry_, 21,
+      // channel_mean); // ?? 21 = COLOR_BGR5652GRAY ?? is the value of
+      cv::Scalar channel_mean(
+          93.5940, 104.7624,
+          129.1863); // mean image (constant) valuei per channel
+      mean_ =
+          cv::Mat(input_geometry_, CV_32FC3,
+                  channel_mean); // ?? 21 = COLOR_BGR5652GRAY ?? is the value of
+    } else
+      mean_ = cv::Mat(input_geometry_, CV_32FC1, cv::Scalar(104.7624f));
   }
 }
 
@@ -91,15 +100,15 @@ void Classifier::SetMean(const string &mean_file) {
   // cv::Scalar channel_mean = cv::mean(mean);
   // mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
   mean_ = mean;
-  //std::cout<<mean.at<float>(0,0)<<endl;;
-  //cv::imshow("mean", mean);
-  //cv::imwrite("mean.png", mean);
-  cv::waitKey(0);
+  // std::cout<<mean.at<float>(0,0)<<endl;;
+  // cv::imshow("mean", mean);
+  // cv::imwrite("mean.png", mean);
+  // cv::waitKey(0);
 }
 
 void Classifier::extract_layer_by_name(const cv::Mat &img,
                                        const string &layer_name,
-                                       //vector<float> &feature) {
+                                       // vector<float> &feature) {
                                        Mat &feature) {
   Blob<float> *input_layer = net_->input_blobs()[0];
   input_layer->Reshape(1, num_channels_, input_geometry_.height,
@@ -117,10 +126,10 @@ void Classifier::extract_layer_by_name(const cv::Mat &img,
   const boost::shared_ptr<Blob<float> > feature_blob =
       net_->blob_by_name(layer_name);
   const float *begin = feature_blob->cpu_data();
-  //const float *end = feature_blob->cpu_data() + feature_blob->count();
-  //feature = std::vector<float>(begin, end);
+  // const float *end = feature_blob->cpu_data() + feature_blob->count();
+  // feature = std::vector<float>(begin, end);
   feature = Mat(1, feature_blob->count(), CV_32F);
-  memcpy(feature.data, begin, sizeof(float)*feature_blob->count());
+  memcpy(feature.data, begin, sizeof(float) * feature_blob->count());
   return;
 }
 
