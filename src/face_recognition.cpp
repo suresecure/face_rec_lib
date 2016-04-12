@@ -193,8 +193,8 @@ float LightFaceRecognizer::CalculateSimilarity(const Mat &feature1,
   // range = 10.f;
   // best_distance = -21.2243f;
   //best_distance = -28.761;
-  best_distance = 0.376177;
-  range = 0.5f;
+  best_distance = 0.369783;
+  range = 1.5f;
   float similarity = 0.5f + (distance - best_distance) / range;
   if (similarity < 0.f)
     similarity = 0.f;
