@@ -60,9 +60,9 @@ LightFaceRecognizer::LightFaceRecognizer(
       cnn_model_path + "/small.prototxt", cnn_model_path + "/small.caffemodel",
       cnn_model_path + "/small_mean_image.binaryproto", use_gpu);
 #else
-  _conv_net = new Classifier(
-      cnn_model_path + "/small.prototxt", cnn_model_path + "/small.caffemodel",
-      string(), use_gpu);
+  _conv_net =
+      new Classifier(cnn_model_path + "/small.prototxt",
+                     cnn_model_path + "/small.caffemodel", string(), use_gpu);
 #endif
   modelPath = face_alignment_model_path;
   ReadGlobalParamFromFile(modelPath + "/LBF.model");
@@ -129,13 +129,13 @@ void LightFaceRecognizer::FaceAlign(const Mat &img, const Rect face_rect,
 
 void LightFaceRecognizer::CropFace(const cv::Mat &img, const Rect face_rect,
                                    Rect &cropped_face_rect) {
-//#ifdef USE_LIGHT_MEAN_IMAGE
+  //#ifdef USE_LIGHT_MEAN_IMAGE
   float scale = 0.55f;
   float scale_top_ratio = 0.3f;
-//#else
-  //float scale = 0.2f;
-  //float scale_top_ratio = 0.5f;
-//#endif
+  //#else
+  // float scale = 0.2f;
+  // float scale_top_ratio = 0.5f;
+  //#endif
   int w = face_rect.width;
   int h = face_rect.height;
   int s = std::max(w, h);
@@ -159,8 +159,8 @@ void LightFaceRecognizer::CropFace(const cv::Mat &img, const Rect face_rect,
   cropped_face_rect = Rect(x, y, s, s);
 }
 
-float LightFaceRecognizer::CalculateDistance(const Mat &feature1,
-                                             const Mat &feature2) {
+float LightFaceRecognizer::CalculateBayesianDistance(const Mat &feature1,
+                                                     const Mat &feature2) {
   BayesianModel *bayesian_model = (BayesianModel *)_bayesian_model;
   double d1[BVLENGTH] = {0.f};
   double d2[BVLENGTH] = {0.f};
@@ -174,10 +174,6 @@ float LightFaceRecognizer::CalculateDistance(const Mat &feature1,
 float LightFaceRecognizer::CalculateEculideanDistance(const Mat &feature1,
                                                       const Mat &feature2) {
   return norm(feature1 - feature2);
-  // float sum = 0.f;
-  // for (int i = 0; i < feature1.size(); ++i)
-  // sum += (feature1[i] - feature2[i]) * (feature1[i] - feature2[i]);
-  // return sqrt(sum);
 }
 float LightFaceRecognizer::CalculateCosDistance(const Mat &feature1,
                                                 const Mat &feature2) {
@@ -185,124 +181,168 @@ float LightFaceRecognizer::CalculateCosDistance(const Mat &feature1,
 }
 float LightFaceRecognizer::CalculateSimilarity(const Mat &feature1,
                                                const Mat &feature2) {
-  //float distance = CalculateDistance(feature1, feature2);
+  // float distance = CalculateDistance(feature1, feature2);
   float distance = CalculateCosDistance(feature1, feature2);
   float best_distance = 0;
   float range = 0.f;
   // best_distance = 54.61f;
   // range = 10.f;
   // best_distance = -21.2243f;
-  //best_distance = -28.761;
+  // best_distance = -28.761;
   best_distance = 0.369783;
+  float max_distance = 1.f;
+  float min_distance = -1.f;
+  float base_similarity = 0.5f;
   range = 1.5f;
-  float similarity = 0.5f + (distance - best_distance) / range;
-  if (similarity < 0.f)
-    similarity = 0.f;
-  else if (similarity > 1.0f)
-    similarity = 1.0f;
-  return similarity;
-}
-
-//MediumFaceRecognizer
-MediumFaceRecognizer::MediumFaceRecognizer(
-    const string &cnn_model_path, const string &feature_name, bool use_gpu)
-    : _feature_name(feature_name) {
-  FLAGS_minloglevel = 3; // close INFO and WARNING level log
-  ::google::InitGoogleLogging("SRZNFaceRecognitionLib");
-  //_conv_net = new Classifier(
-      //cnn_model_path + "/casia_face.prototxt", cnn_model_path + "/_iter_366000.caffemodel",
-      //cnn_model_path + "/.binaryproto", use_gpu);
-  _conv_net = new Classifier(
-      cnn_model_path + "/casia_face.prototxt", cnn_model_path + "/_iter_366000.caffemodel",
-      cnn_model_path + "/mean.binaryproto", use_gpu);
-}
-
-void MediumFaceRecognizer::ExtractFaceFeature(const cv::Mat &img, Mat &feature) {
-  Classifier *conv_net = (Classifier *)_conv_net;
-  conv_net->extract_layer_by_name(img, _feature_name, feature);
-  return;
-}
-
-//void LightFaceRecognizer::CropFace(const cv::Mat &img, const Rect face_rect,
-                                   //Rect &cropped_face_rect) {
-  //float scale = 0.55f;
-  //float scale_top_ratio = 0.3f;
-  //int w = face_rect.width;
-  //int h = face_rect.height;
-  //int s = std::max(w, h);
-  //int x = face_rect.x - (s - w) * 0.5f;
-  //int y = face_rect.y - (s - h) * 0.5f;
-  //int left_dist = x;
-  //int right_dist = img.cols - x - s;
-  //int hor_min_dist = std::min(left_dist, right_dist);
-  //int top_dist = y;
-  //int bot_dist = img.rows - y - s;
-  //int max_hor_padding = hor_min_dist * 2;
-  //int max_ver_padding = std::min(top_dist, (int)(bot_dist * scale_top_ratio /
-                                                 //(1.f - scale_top_ratio))) *
-                        //2;
-  //int max_padding = std::min(max_hor_padding, max_ver_padding);
-  //int padding = std::min(max_padding, (int)(s * scale));
-  //x = x - padding / 2;
-  //y = y - padding * scale_top_ratio;
-  //s = s + padding;
-
-  //cropped_face_rect = Rect(x, y, s, s);
-//}
-
-//float MediumFaceRecognizer::CalculateEculideanDistance(const Mat &feature1,
-                                                      //const Mat &feature2) {
-  //return norm(feature1 - feature2);
-//}
-float MediumFaceRecognizer::CalculateCosDistance(const Mat &feature1,
-                                                const Mat &feature2) {
-  return feature1.dot(feature2) / (norm(feature1) * norm(feature2));
-}
-//float MediumFaceRecognizer::CalculateSimilarity(const Mat &feature1,
-                                               //const Mat &feature2) {
-  //float distance = CalculateDistance(feature1, feature2);
-  //float best_distance = 0;
-  //float range = 0.f;
-  //// best_distance = 54.61f;
-  //// range = 10.f;
-  //// best_distance = -21.2243f;
-  //best_distance = -28.761;
-  //range = 20.f;
   //float similarity = 0.5f + (distance - best_distance) / range;
-  //if (similarity < 0.f)
-    //similarity = 0.f;
-  //else if (similarity > 1.0f)
-    //similarity = 1.0f;
-  //return similarity;
+  if (distance >= best_distance)
+    return 0.5f + (distance - best_distance) / (max_distance - best_distance);
+  else
+    return 0.5f - (distance - best_distance) / (best_distance - min_distance);
+  // if (similarity < 0.f)
+  // similarity = 0.f;
+  // else if (similarity > 1.0f)
+  // similarity = 1.0f;
+  // return similarity;
+}
+
+// class MediumFaceRecognizer {
+// public:
+// MediumFaceRecognizer(const string &cnn_model_path, const string
+// &feature_name,
+// bool use_gpu = true);
+// void ExtractFaceFeature(const cv::Mat &, Mat &);
+//// void FaceAlign(const cv::Mat &img, const Rect face_rect, cv::Mat &out_img);
+// void CropFace(const cv::Mat &img, const Rect face_rect,
+// Rect &cropped_face_rect);
+//// float CalculateEculideanDistance(const Mat &feature1, const Mat &feature2);
+// float CalculateCosDistance(const Mat &feature1, const Mat &feature2);
+//// float CalculateSimilarity(const Mat &feature1,
+//// const Mat &feature2);
+
+// private:
+//// void ImageAlign(const Mat &orig, Point2d leftEye, Point2d rightEye,
+//// Mat &outputarray);
+// string _feature_name;
+// void *_conv_net;
+//// void *_alignment_regressor;
+//// void *_bayesian_model;
+//};
+
+// class HeavyFaceRecognizer {
+// public:
+// HeavyFaceRecognizer(const string &cnn_model_path, bool use_gpu = true);
+// void ExtractFaceFeature(const cv::Mat &, Mat &);
+// float CalculateDistance(const vector<float> &, const vector<float> &);
+// float CalculateSimilarity(const vector<float> &, const vector<float> &);
+
+// private:
+// void *_conv_net;
+//};
+////MediumFaceRecognizer
+// MediumFaceRecognizer::MediumFaceRecognizer(
+// const string &cnn_model_path, const string &feature_name, bool use_gpu)
+//: _feature_name(feature_name) {
+// FLAGS_minloglevel = 3; // close INFO and WARNING level log
+//::google::InitGoogleLogging("SRZNFaceRecognitionLib");
+////_conv_net = new Classifier(
+////cnn_model_path + "/casia_face.prototxt", cnn_model_path +
+///"/_iter_366000.caffemodel",
+////cnn_model_path + "/.binaryproto", use_gpu);
+//_conv_net = new Classifier(
+// cnn_model_path + "/casia_face.prototxt", cnn_model_path +
+// "/_iter_366000.caffemodel",
+// cnn_model_path + "/mean.binaryproto", use_gpu);
 //}
 
-// HeavyFaceRecognizer
-HeavyFaceRecognizer::HeavyFaceRecognizer(const string &cnn_model_path,
-                                         bool use_gpu) {
-  FLAGS_minloglevel = 3; // close INFO and WARNING level log
-  ::google::InitGoogleLogging("SRZNFaceRecognitionLib");
-  _conv_net =
-      new Classifier(cnn_model_path + "/big.prototxt",
-                     cnn_model_path + "/big.caffemodel", string(), use_gpu);
-}
-void HeavyFaceRecognizer::ExtractFaceFeature(const cv::Mat &img, Mat &feature) {
-  Mat feat, feat_flip;
-  Classifier *conv_net = (Classifier *)_conv_net;
-  conv_net->extract_layer_by_name(img, "fc7", feat);
-  cv::Mat img_flip;
-  cv::flip(img, img_flip, 1);
-  conv_net->extract_layer_by_name(img_flip, "fc7", feat_flip);
-  // for (int i = 0; i < feat.size(); ++i)
-  // feat[i] = (feat[i] + feat_flip[i]) * 0.5f;
-  add(feat, feat_flip, feature);
-  feature = feature * 0.5f;
-  return;
-}
-float HeavyFaceRecognizer::CalculateDistance(const vector<float> &a,
-                                             const vector<float> &b) {
-  float sum = 0.f;
-  for (int i = 0; i < a.size(); ++i)
-    sum += a[i] * b[i];
-  return sqrt(sum);
-}
+// void MediumFaceRecognizer::ExtractFaceFeature(const cv::Mat &img, Mat
+// &feature) {
+// Classifier *conv_net = (Classifier *)_conv_net;
+// conv_net->extract_layer_by_name(img, _feature_name, feature);
+// return;
+//}
+
+////void LightFaceRecognizer::CropFace(const cv::Mat &img, const Rect face_rect,
+////Rect &cropped_face_rect) {
+////float scale = 0.55f;
+////float scale_top_ratio = 0.3f;
+////int w = face_rect.width;
+////int h = face_rect.height;
+////int s = std::max(w, h);
+////int x = face_rect.x - (s - w) * 0.5f;
+////int y = face_rect.y - (s - h) * 0.5f;
+////int left_dist = x;
+////int right_dist = img.cols - x - s;
+////int hor_min_dist = std::min(left_dist, right_dist);
+////int top_dist = y;
+////int bot_dist = img.rows - y - s;
+////int max_hor_padding = hor_min_dist * 2;
+////int max_ver_padding = std::min(top_dist, (int)(bot_dist * scale_top_ratio /
+////(1.f - scale_top_ratio))) *
+////2;
+////int max_padding = std::min(max_hor_padding, max_ver_padding);
+////int padding = std::min(max_padding, (int)(s * scale));
+////x = x - padding / 2;
+////y = y - padding * scale_top_ratio;
+////s = s + padding;
+
+////cropped_face_rect = Rect(x, y, s, s);
+////}
+
+////float MediumFaceRecognizer::CalculateEculideanDistance(const Mat &feature1,
+////const Mat &feature2) {
+////return norm(feature1 - feature2);
+////}
+// float MediumFaceRecognizer::CalculateCosDistance(const Mat &feature1,
+// const Mat &feature2) {
+// return feature1.dot(feature2) / (norm(feature1) * norm(feature2));
+//}
+////float MediumFaceRecognizer::CalculateSimilarity(const Mat &feature1,
+////const Mat &feature2) {
+////float distance = CalculateDistance(feature1, feature2);
+////float best_distance = 0;
+////float range = 0.f;
+////// best_distance = 54.61f;
+////// range = 10.f;
+////// best_distance = -21.2243f;
+////best_distance = -28.761;
+////range = 20.f;
+////float similarity = 0.5f + (distance - best_distance) / range;
+////if (similarity < 0.f)
+////similarity = 0.f;
+////else if (similarity > 1.0f)
+////similarity = 1.0f;
+////return similarity;
+////}
+
+//// HeavyFaceRecognizer
+// HeavyFaceRecognizer::HeavyFaceRecognizer(const string &cnn_model_path,
+// bool use_gpu) {
+// FLAGS_minloglevel = 3; // close INFO and WARNING level log
+//::google::InitGoogleLogging("SRZNFaceRecognitionLib");
+//_conv_net =
+// new Classifier(cnn_model_path + "/big.prototxt",
+// cnn_model_path + "/big.caffemodel", string(), use_gpu);
+//}
+// void HeavyFaceRecognizer::ExtractFaceFeature(const cv::Mat &img, Mat
+// &feature) {
+// Mat feat, feat_flip;
+// Classifier *conv_net = (Classifier *)_conv_net;
+// conv_net->extract_layer_by_name(img, "fc7", feat);
+// cv::Mat img_flip;
+// cv::flip(img, img_flip, 1);
+// conv_net->extract_layer_by_name(img_flip, "fc7", feat_flip);
+//// for (int i = 0; i < feat.size(); ++i)
+//// feat[i] = (feat[i] + feat_flip[i]) * 0.5f;
+// add(feat, feat_flip, feature);
+// feature = feature * 0.5f;
+// return;
+//}
+// float HeavyFaceRecognizer::CalculateDistance(const vector<float> &a,
+// const vector<float> &b) {
+// float sum = 0.f;
+// for (int i = 0; i < a.size(); ++i)
+// sum += a[i] * b[i];
+// return sqrt(sum);
+//}
 }

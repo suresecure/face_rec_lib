@@ -247,7 +247,7 @@ float FaceVerification(LightFaceRecognizer &recognizer,
   float cos_distance =
       recognizer.CalculateCosDistance(face1_feature, face2_feature);
   float bayesian_distance =
-      recognizer.CalculateDistance(face1_feature, face2_feature);
+      recognizer.CalculateBayesianDistance(face1_feature, face2_feature);
   cout << "Cos distance: " << cos_distance
        << "\tBayesian distance: " << bayesian_distance << endl;
   return similarity;
@@ -276,7 +276,7 @@ void FaceSearch(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
     float cos_distance =
         recognizer.CalculateCosDistance(target_face_feat, face2_feature);
     float bayesian_distance =
-        recognizer.CalculateDistance(target_face_feat, face2_feature);
+        recognizer.CalculateBayesianDistance(target_face_feat, face2_feature);
     cout << "Cos distance: " << cos_distance
          << "\tBayesian distance: " << bayesian_distance << endl;
   }

@@ -576,105 +576,105 @@ void validate_on_prepared_data(LightFaceRecognizer &recognizer) {
   cout << "Max precision: " << max_precision << "\tThd: " << max_thd << endl;
 }
 
-void validate_heavy_model(HeavyFaceRecognizer &recognizer) {
-  ifstream pairs_file("../../lfw_data/pairs.txt");
-  // ifstream pair_file("../../lfw_data/COLOR224issame.txt");
-  ofstream distance_file("distance_file.txt");
-  // initialize parameters
-  vector<float> distance_vector;
-  vector<bool> gt_vector;
+//void validate_heavy_model(HeavyFaceRecognizer &recognizer) {
+  //ifstream pairs_file("../../lfw_data/pairs.txt");
+  //// ifstream pair_file("../../lfw_data/COLOR224issame.txt");
+  //ofstream distance_file("distance_file.txt");
+  //// initialize parameters
+  //vector<float> distance_vector;
+  //vector<bool> gt_vector;
 
-  string line;
-  getline(pairs_file, line);
-  cout << line << endl;
+  //string line;
+  //getline(pairs_file, line);
+  //cout << line << endl;
 
-  bool gt;
-  int fnum = 0;
-  while (getline(pairs_file, line)) {
-    // split line
-    // vector<string> sline{"1","2"};
-    // vector<string> sline(istream_iterator<string>(line),
-    // istream_iterator<string>());
-    vector<string> sline = split(line, '\t');
-    string name1, name2;
-    int id1, id2;
-    if (sline.size() == 3) {
-      name1 = name2 = sline[0];
-      stringstream idstr1(sline[1]);
-      idstr1 >> id1;
-      stringstream idstr2(sline[2]);
-      idstr2 >> id2;
-      gt = true;
-    } else if (sline.size() == 4) {
-      name1 = sline[0];
-      stringstream idstr1(sline[1]);
-      idstr1 >> id1;
-      name2 = sline[2];
-      stringstream idstr2(sline[3]);
-      idstr2 >> id2;
-      gt = false;
-    } else {
-      cout << "Read pair error!" << endl;
-      exit(1);
-    }
+  //bool gt;
+  //int fnum = 0;
+  //while (getline(pairs_file, line)) {
+    //// split line
+    //// vector<string> sline{"1","2"};
+    //// vector<string> sline(istream_iterator<string>(line),
+    //// istream_iterator<string>());
+    //vector<string> sline = split(line, '\t');
+    //string name1, name2;
+    //int id1, id2;
+    //if (sline.size() == 3) {
+      //name1 = name2 = sline[0];
+      //stringstream idstr1(sline[1]);
+      //idstr1 >> id1;
+      //stringstream idstr2(sline[2]);
+      //idstr2 >> id2;
+      //gt = true;
+    //} else if (sline.size() == 4) {
+      //name1 = sline[0];
+      //stringstream idstr1(sline[1]);
+      //idstr1 >> id1;
+      //name2 = sline[2];
+      //stringstream idstr2(sline[3]);
+      //idstr2 >> id2;
+      //gt = false;
+    //} else {
+      //cout << "Read pair error!" << endl;
+      //exit(1);
+    //}
 
-    // Load face images
-    std::ostringstream face1_string_stream;
-    face1_string_stream << "../../lfw_data/lfw/" << name1 << "/" << name1 << "_"
-                        << setw(4) << setfill('0') << id1 << ".jpg";
-    std::string face1_name = face1_string_stream.str();
-    std::ostringstream face2_string_stream;
-    face2_string_stream << "../../lfw_data/lfw/" << name2 << "/" << name2 << "_"
-                        << setw(4) << setfill('0') << id2 << ".jpg";
-    std::string face2_name = face2_string_stream.str();
+    //// Load face images
+    //std::ostringstream face1_string_stream;
+    //face1_string_stream << "../../lfw_data/lfw/" << name1 << "/" << name1 << "_"
+                        //<< setw(4) << setfill('0') << id1 << ".jpg";
+    //std::string face1_name = face1_string_stream.str();
+    //std::ostringstream face2_string_stream;
+    //face2_string_stream << "../../lfw_data/lfw/" << name2 << "/" << name2 << "_"
+                        //<< setw(4) << setfill('0') << id2 << ".jpg";
+    //std::string face2_name = face2_string_stream.str();
 
-    cout << face1_name << "\t" << face2_name << endl;
+    //cout << face1_name << "\t" << face2_name << endl;
 
-    Mat face1 = imread(face1_name);
-    Mat face2 = imread(face2_name);
+    //Mat face1 = imread(face1_name);
+    //Mat face2 = imread(face2_name);
 
-    int csize = 224;
-    int half_padding = (face1.cols - 224) / 2;
-    Mat face1_cropped(face1, Rect(half_padding, half_padding, csize, csize));
-    Mat face2_cropped(face2, Rect(half_padding, half_padding, csize, csize));
+    //int csize = 224;
+    //int half_padding = (face1.cols - 224) / 2;
+    //Mat face1_cropped(face1, Rect(half_padding, half_padding, csize, csize));
+    //Mat face2_cropped(face2, Rect(half_padding, half_padding, csize, csize));
 
-    //// compute frame per second (fps)
-    ////int64 start_tick = getTickCount();
+    ////// compute frame per second (fps)
+    //////int64 start_tick = getTickCount();
 
-    ////Extract feature from images
-    Mat face1_feature;
-    Mat face2_feature;
-    recognizer.ExtractFaceFeature(face1_cropped, face1_feature);
-    recognizer.ExtractFaceFeature(face2_cropped, face2_feature);
+    //////Extract feature from images
+    //Mat face1_feature;
+    //Mat face2_feature;
+    //recognizer.ExtractFaceFeature(face1_cropped, face1_feature);
+    //recognizer.ExtractFaceFeature(face2_cropped, face2_feature);
 
-    float distance = recognizer.CalculateDistance(face1_feature, face2_feature);
-    // float distance = FaceDistance(recognizer, face1_feature, face2_feature);
-    distance_vector.push_back(distance);
-    gt_vector.push_back(gt);
-    distance_file << distance << "\t" << gt << endl;
-    ++fnum;
-    cout << "pair num: " << fnum << "distance: " << distance << endl;
-  }
-  distance_file.close();
+    //float distance = recognizer.CalculateDistance(face1_feature, face2_feature);
+    //// float distance = FaceDistance(recognizer, face1_feature, face2_feature);
+    //distance_vector.push_back(distance);
+    //gt_vector.push_back(gt);
+    //distance_file << distance << "\t" << gt << endl;
+    //++fnum;
+    //cout << "pair num: " << fnum << "distance: " << distance << endl;
+  //}
+  //distance_file.close();
 
-  float max_precision = 0.0f;
-  float max_thd = 0.0f;
-  for (int i = 0; i < distance_vector.size(); ++i) {
-    int correct = 0;
-    float thd = distance_vector[i];
-    for (int j = 0; j < distance_vector.size(); ++j) {
-      float dist = distance_vector[j];
-      if ((dist >= thd && gt_vector[j]) || (dist < thd && !gt_vector[j]))
-        ++correct;
-    }
-    float precision = (float)correct / distance_vector.size();
-    if (precision > max_precision) {
-      max_precision = precision;
-      max_thd = thd;
-    }
-  }
-  cout << "Max precision: " << max_precision << "\tThd: " << max_thd << endl;
-}
+  //float max_precision = 0.0f;
+  //float max_thd = 0.0f;
+  //for (int i = 0; i < distance_vector.size(); ++i) {
+    //int correct = 0;
+    //float thd = distance_vector[i];
+    //for (int j = 0; j < distance_vector.size(); ++j) {
+      //float dist = distance_vector[j];
+      //if ((dist >= thd && gt_vector[j]) || (dist < thd && !gt_vector[j]))
+        //++correct;
+    //}
+    //float precision = (float)correct / distance_vector.size();
+    //if (precision > max_precision) {
+      //max_precision = precision;
+      //max_thd = thd;
+    //}
+  //}
+  //cout << "Max precision: " << max_precision << "\tThd: " << max_thd << endl;
+//}
 
 int main(int argc, char **argv) {
   // Init Recognizer
