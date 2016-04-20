@@ -264,28 +264,41 @@ void FaceSearch(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
   Mat target_face = imread(target_name);
   Mat target_face_cropped = detectAlignCrop(target_face, cascade, recognizer);
   imshow("target_face_cropped", target_face_cropped);
-  waitKey(0);
+  // waitKey(0);
   Mat target_face_feat;
   recognizer.ExtractFaceFeature(target_face_cropped, target_face_feat);
   vector<fs::path> files;
+  // vector<float> distances;
+  vector<pair<fs::path, float>> distances;
   get_all("../../../test_faces", ".jpg", files);
   for (int i = 0; i < files.size(); ++i) {
-    cout<<files[i].string()<<"\t";
+    //cout << files[i].string() << "\t";
     Mat face2 = imread(files[i].string());
     Mat face2_cropped = detectAlignCrop(face2, cascade, recognizer);
-    imshow("face2_cropped", face2_cropped);
-    waitKey(0);
+    //imshow("face2_cropped", face2_cropped);
+    //waitKey(0);
     Mat face2_feature;
     recognizer.ExtractFaceFeature(face2_cropped, face2_feature);
-    //float similarity =
-    //recognizer.CalculateSimilarity(target_face_feat, face2_feature);
+    // float similarity =
+    // recognizer.CalculateSimilarity(target_face_feat, face2_feature);
     float cos_distance =
-      recognizer.CalculateCosDistance(target_face_feat, face2_feature);
+        recognizer.CalculateCosDistance(target_face_feat, face2_feature);
+    distances.push_back(pair<fs::path, float>(files[i], cos_distance));
     float bayesian_distance =
-      recognizer.CalculateBayesianDistance(target_face_feat, face2_feature);
-    cout << "Cos distance: " << cos_distance
-      << "\tBayesian distance: " << bayesian_distance << endl;
+        recognizer.CalculateBayesianDistance(target_face_feat, face2_feature);
+    // cout << "Cos distance: " << cos_distance
+    //<< "\tBayesian distance: " << bayesian_distance << endl;
   }
+  std::sort(std::begin(distances), std::end(distances),
+            [](const std::pair<fs::path, float> &left,
+               const std::pair<fs::path, float> &right) {
+              return left.second > right.second;
+            });
+  for (vector<pair<fs::path, float>>::iterator s = distances.begin();
+       s != distances.end(); ++s) {
+    cout << s->first << ": " << s->second << endl;
+  }
+  //[&](int i1, int i2) { return distances[i1] < distances[i2]; });
 
   // Mat face2 = imread(f2_name);
   // Mat face2_cropped = detectAlignCrop(face2, cascade, recognizer);
