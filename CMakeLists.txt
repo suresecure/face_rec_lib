@@ -7,6 +7,9 @@ set(FaceRecSrzn_PATCH_VERSION 7)
 set(FaceRecSrzn_VERSION
   ${FaceRecSrzn_MAJOR_VERSION}.${FaceRecSrzn_MINOR_VERSION}.${FaceRecSrzn_PATCH_VERSION})
 
+# ---[ Using cmake scripts and modules
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+
 if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT) 
   set(CMAKE_INSTALL_PREFIX "${PROJECT_BINARY_DIR}/install" CACHE PATH "Default install path" FORCE) 
 endif() 
@@ -46,6 +49,10 @@ add_definitions(${Caffe_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
+
+set(flann_)
+find_package(Flann REQUIRED)
+include_directories(${FLANN_INCLUDE_DIRS})
 
 configure_file(config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY)
 
