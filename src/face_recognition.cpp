@@ -76,6 +76,7 @@ LightFaceRecognizer::LightFaceRecognizer(
 void LightFaceRecognizer::ExtractFaceFeature(const cv::Mat &img, Mat &feature) {
   Classifier *conv_net = (Classifier *)_conv_net;
   conv_net->extract_layer_by_name(img, _feature_name, feature);
+  normalize(feature, feature, 1, 0, NORM_L2);
   return;
 }
 

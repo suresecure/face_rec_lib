@@ -401,8 +401,8 @@ void Index(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
     //cout<<face2_feature.at<FEATURE_TYPE>(82)<<" "<<dataset[i][82]<<endl;
   }
 
-  ::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::LinearIndexParams(), ::flann::CosDistance<FEATURE_TYPE>());
-  //::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::AutotunedIndexParams());
+  //::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::LinearIndexParams(), ::flann::CosDistance<FEATURE_TYPE>());
+  ::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::AutotunedIndexParams());
   index.buildIndex();
 
   ::flann::Matrix<int> indices(new int[num_return], 1, num_return);
@@ -460,13 +460,22 @@ void Index(LightFaceRecognizer &recognizer,
     memcpy(dataset[i], face_feature.data, sizeof(FEATURE_TYPE)*FEATURE_DIM);
     file_path.push_back(line);
     //cout<<face_feature.at<FEATURE_TYPE>(82)<<"\t"<<dataset[i][82]<<endl;
+    /*
+    // Test L2-normalized feature
+    double sum = 0, max = 0;
+    for (int k = 0; k < FEATURE_DIM; k++) {
+      sum += face_feature.at<FEATURE_TYPE>(k) * face_feature.at<FEATURE_TYPE>(k);
+      max = max > face_feature.at<FEATURE_TYPE>(k) ? max : face_feature.at<FEATURE_TYPE>(k);
+    }
+    cout<<"Feature sum: "<<sum<<"; max: "<<max<<endl;
+    */
   }
   file_list.close();
   long time2 = clock();
 
   // Create index
-  ::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::LinearIndexParams(), ::flann::CosDistance<FEATURE_TYPE>());
-  //::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::AutotunedIndexParams());
+  //::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::LinearIndexParams(), ::flann::CosDistance<FEATURE_TYPE>());
+  ::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::AutotunedIndexParams());
   index.buildIndex();
   long time3 = clock();
 
@@ -563,7 +572,35 @@ void Query(LightFaceRecognizer &recognizer,
     data_file_path.push_back(line);
   }
   // load the index 
-  ::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file), ::flann::CosDistance<FEATURE_TYPE>());
+  //::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file), ::flann::CosDistance<FEATURE_TYPE>());
+  ::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file));
+
+  /*
+  //-----------------------------------------
+  // "addPoints" and removePoint" testing 
+  ::flann::Matrix<FEATURE_TYPE> added(new FEATURE_TYPE[N*FEATURE_DIM], N, FEATURE_DIM);
+  for (int i = 0; i < N; i++) {
+    Mat face = imread(query_file_path[i]);
+    Mat face_cropped = detectAlignCrop(face, cascade, recognizer);
+    //imshow("face_cropped", face_cropped);
+    //waitKey(0);
+    Mat face_feature;
+    recognizer.ExtractFaceFeature(face_cropped, face_feature);
+    memcpy(added[i], face_feature.data, sizeof(FEATURE_TYPE)*FEATURE_DIM);
+    data_file_path.push_back(query_file_path[i]);
+    //cout<<face_feature.at<FEATURE_TYPE>(82)<<"\t"<<query[i][82]<<endl;
+  }
+  index.addPoints(added);  
+  //delete [] added.ptr();
+  //delete [] dataset.ptr(); // It seems that Index holds its own data. The orginal feature matrix does not matter after the construction of Index.
+  cout<<"Dataset size after add: "<<dataset.rows<<endl;
+  index.removePoint(22);
+  index.removePoint(24);
+  index.removePoint(26);
+  index.removePoint(28);
+  //cout<<index.getPoint(20)[0]<<"\t"<<query[0][0]<<endl;
+  //-----------------------------------------
+  */
 
   // prepare the search result matrix
   ::flann::Matrix<FEATURE_TYPE> dists(new FEATURE_TYPE[query.rows*num_return], query.rows, num_return);
@@ -619,7 +656,8 @@ void retrieval_on_lfw(LightFaceRecognizer recognizer,
     data_file_path.push_back(line);
   }
   // load the index 
-  ::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file), ::flann::CosDistance<FEATURE_TYPE>());
+  //::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file), ::flann::CosDistance<FEATURE_TYPE>());
+  ::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file));
 
   // Read face count
   int N = data_file_path.size();
@@ -685,23 +723,18 @@ void retrieval_on_lfw(LightFaceRecognizer recognizer,
       num_person[j]++;
       string class_name_j = fs::canonical(data_file_path[indices[i][j]]).parent_path().filename().string();
       if (class_name_j == class_name) {
-        //for (int k1 = j; k1 < nFaces_UpBound; k1++) {
-        //for (int k2 = j; k2 < nFaces_UpBound; k2++) {
-          //precision_per_rank[k1][k2]++;
-          //}
-          //}
         correct[j][i] = 1;
       }
     }
   }
-  // A test for queries who have more than 70 faces in the dataset
+  //// A test for queries who have more than 70 faces in the dataset
   //int a = 0, b = 0;
   //for (int i = 0; i < N; i++) {
     //if (face_count[i] > 70)  {
       //a = 0;
       //for (int j = 0; j < 70; j++)
       //{
-        ////cout<<correct[j][i]<<"\t";
+        //cout<<correct[j][i]<<"\t";
         //a+=correct[j][i];
       //}
       //cout<<a<<endl;
@@ -714,9 +747,9 @@ void retrieval_on_lfw(LightFaceRecognizer recognizer,
     for (int k = 0; k < nFaces_UpBound; k++) {
       if (face_count[i] > k) {
         for (int j = 0; j <= k; j++) {
-        for (int m = j; m <= nFaces_UpBound; m++) {
-          precision_per_rank[k][m] += correct[j][i];
-        }
+          for (int m = j; m <= nFaces_UpBound; m++) {
+            precision_per_rank[k][m] += correct[j][i];
+          }
         }
       }
     }
@@ -766,9 +799,10 @@ int main(int argc, char **argv) {
   //float similarity = FaceVerification(recognizer, cascade, argv[1], argv[2]);
   //cout << "similartiy: " << similarity << endl;
   //FaceSearch(recognizer, cascade, argv[1], argv[2]);
+
   //Index(recognizer, cascade, argv[1], argv[2], 20);
-  //Index(recognizer, cascade, argv[1]);
+  Index(recognizer, cascade, argv[1]);
   //Query(recognizer, cascade, argv[1] ); // Need index first
-  retrieval_on_lfw(recognizer, cascade);  
+  //retrieval_on_lfw(recognizer, cascade);  
   return 0;
 }
