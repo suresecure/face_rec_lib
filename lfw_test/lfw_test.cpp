@@ -710,7 +710,7 @@ void retrieval_on_lfw(LightFaceRecognizer & recognizer,
   }
 
   // Statistics
-  vector<int> num_person(nFaces_UpBound, 0); // number of person who have more than XX faces
+  vector<int> num_images(nFaces_UpBound, 0); // number of images who have more than XX faces
   vector< vector<float> > precision_per_rank;
   vector< vector<int> > correct;
   for (int i = 0; i < nFaces_UpBound; i++) {
@@ -722,7 +722,7 @@ void retrieval_on_lfw(LightFaceRecognizer & recognizer,
     for (int j = 0; j < nFaces_UpBound; j++) {
       if (face_count[i] < j + 1)
         break;
-      num_person[j]++;
+      num_images[j]++;
       string class_name_j = fs::canonical(data_file_path[indices[i][j]]).parent_path().filename().string();
       if (class_name_j == class_name) {
         correct[j][i] = 1;
@@ -743,7 +743,7 @@ void retrieval_on_lfw(LightFaceRecognizer & recognizer,
       //b += a;
     //}
   //}
-  //cout<<float(b)/70/num_person[70]<<endl;
+  //cout<<float(b)/70/num_images[70]<<endl;
 
   for (int i = 0; i < N; i++) {
     for (int k = 0; k < nFaces_UpBound; k++) {
@@ -758,15 +758,15 @@ void retrieval_on_lfw(LightFaceRecognizer & recognizer,
   }
   for (int k = 0; k < nFaces_UpBound; k++) {
     for (int j = 0; j <= k; j++) {
-      precision_per_rank[k][j] /= (num_person[k] * (j+1) );
+      precision_per_rank[k][j] /= (num_images[k] * (j+1) );
     }
   }
 
   for (int i = 0; i < nFaces_UpBound; i++) {
-    if (num_person[i] < 1)
+    if (num_images[i] < 1)
       break;
     cout<<"--------------------------------------------------"<<endl;
-    cout<<"Person who have "<<i+1<<" faces: "<<num_person[i]<<" persons"<<endl;
+    cout<<"Images who have "<<i+1<<" faces: "<<num_images[i]<<" images"<<endl;
     cout<<"Precision per rank:"<<endl;
     for (int j = 0; j <= i; j++) {
       cout<<"Rank #"<<j+1<<": "<<precision_per_rank[i][j]<<endl;
@@ -782,8 +782,8 @@ void retrieval_on_lfw(LightFaceRecognizer & recognizer,
 void retrieval_on_lfw_by_FaceRepo(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade) {
 
-  string lfw_indices_file = "../../../lfw_data/lfw_indices.hdf5";
-  string lfw_dists_file = "../../../lfw_data/lfw_dists.hdf5";
+  string lfw_indices_file = "../../../lfw_data/result_FaceRepo/lfw_indices.hdf5";
+  string lfw_dists_file = "../../../lfw_data/result_FaceRepo/lfw_dists.hdf5";
   string lfw_directory = "../../../lfw_data/result_FaceRepo";
   string lfw_file_name = "../../../lfw_data/lfw_file_name.txt";
   string lfw_same_face_count = "../../../lfw_data/lfw_same_face_count.txt";
@@ -861,7 +861,7 @@ void retrieval_on_lfw_by_FaceRepo(LightFaceRecognizer & recognizer,
   }
 
   // Statistics
-  vector<int> num_person(nFaces_UpBound, 0); // number of person who have more than XX faces
+  vector<int> num_images(nFaces_UpBound, 0); // number of images who have more than XX faces
   vector< vector<float> > precision_per_rank;
   vector< vector<int> > correct;
   for (int i = 0; i < nFaces_UpBound; i++) {
@@ -873,7 +873,7 @@ void retrieval_on_lfw_by_FaceRepo(LightFaceRecognizer & recognizer,
     for (int j = 0; j < nFaces_UpBound; j++) {
       if (face_count[i] < j + 1)
         break;
-      num_person[j]++;
+      num_images[j]++;
       string class_name_j = fs::canonical(data_file_path[indices[i][j]]).parent_path().filename().string();
       if (class_name_j == class_name) {
         correct[j][i] = 1;
@@ -893,16 +893,16 @@ void retrieval_on_lfw_by_FaceRepo(LightFaceRecognizer & recognizer,
   }
   for (int k = 0; k < nFaces_UpBound; k++) {
     for (int j = 0; j <= k; j++) {
-      precision_per_rank[k][j] /= (num_person[k] * (j+1) );
+      precision_per_rank[k][j] /= (num_images[k] * (j+1) );
     }
   }
 
   // Print results.
   for (int i = 0; i < nFaces_UpBound; i++) {
-    if (num_person[i] < 1)
+    if (num_images[i] < 1)
       break;
     cout<<"--------------------------------------------------"<<endl;
-    cout<<"Person who have "<<i+1<<" faces: "<<num_person[i]<<" persons"<<endl;
+    cout<<"Images who have "<<i+1<<" faces: "<<num_images[i]<<" images"<<endl;
     cout<<"Precision per rank:"<<endl;
     for (int j = 0; j <= i; j++) {
       cout<<"Rank #"<<j+1<<": "<<precision_per_rank[i][j]<<endl;
