@@ -49,7 +49,8 @@ add_definitions(${Caffe_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
-
+find_package(Boost REQUIRED)
+include_directories(${Boost_INCLUDE_DIRS})
 find_package(Flann REQUIRED)
 include_directories(${FLANN_INCLUDE_DIRS})
 
@@ -83,7 +84,7 @@ add_executable(lfw_val
   lfw_val/lfw_val.cpp)
   
 #target_include_directories (lfw_val PRIVATE ./include )
-target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS})
+target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
 
 set_target_properties(face_rec_srzn PROPERTIES
   PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
@@ -103,8 +104,9 @@ install(TARGETS face_rec_srzn
 
 install(FILES lfw_test/lfw_test.cpp
   lfw_test/CMakeLists.txt
-  lfw_test/haarcascade_frontalface_alt.xml
   DESTINATION lfw_test)
+install(FILES  cmake/Modules/FindFlann.cmake
+  DESTINATION lfw_test/cmake/Modules)
 install(FILES caffe_lib/libcaffe.so
   caffe_lib/libcaffe.so.1.0.0-rc3
   DESTINATION lib)
