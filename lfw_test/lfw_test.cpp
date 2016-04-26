@@ -12,6 +12,7 @@
 #include "boost/filesystem.hpp"
 #include "flann/flann.hpp"
 #include "flann/io/hdf5.h"
+#include "face_repository.hpp"
 
 #define  FEATURE_DIM (160) 
 typedef float FEATURE_TYPE;
@@ -625,7 +626,7 @@ void Query(LightFaceRecognizer &recognizer,
   delete [] query.ptr();
 }
 
-void retrieval_on_lfw(LightFaceRecognizer recognizer,
+void retrieval_on_lfw(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade) {
 
   bool bFreshRun = false;  // If true, recreate index, and redo all search
@@ -651,8 +652,7 @@ void retrieval_on_lfw(LightFaceRecognizer recognizer,
   vector <string> data_file_path;
   ifstream inFile(dataset_path_file.c_str());
   string line;
-  while (inFile) {
-    getline(inFile, line);
+  while (getline(inFile, line)) {
     data_file_path.push_back(line);
   }
   // load the index 
@@ -672,7 +672,8 @@ void retrieval_on_lfw(LightFaceRecognizer recognizer,
   int nFaces_UpBound = 100;  // Up bound of retrieval faces
   ::flann::Matrix<FEATURE_TYPE> dists;
   ::flann::Matrix<int> indices;
-  if (bFreshRun) {
+  //if (bFreshRun) {
+  if (true) {
     long time3 = clock();
     // Search result matrix
     dists = ::flann::Matrix<FEATURE_TYPE> (new FEATURE_TYPE[N*nFaces_UpBound], N, nFaces_UpBound);
@@ -688,7 +689,8 @@ void retrieval_on_lfw(LightFaceRecognizer recognizer,
     for (int i = 0; i < N; i++) {
       memcpy(query[0], dataset[i], sizeof(FEATURE_TYPE)*FEATURE_DIM);
       //cout<<i<<": "<<query[0][FEATURE_DIM-1]<<"\t"<<dataset[i][FEATURE_DIM-1]<<endl;
-      index.knnSearch(query, indices_one_query, dists_one_query, nFaces_UpBound, ::flann::SearchParams(128)); 
+      index.knnSearch(query, indices_one_query, dists_one_query, nFaces_UpBound, ::flann::SearchParams(::flann::FLANN_CHECKS_AUTOTUNED)); //::flann::SearchParams(128)
+      //index.knnSearch(query, indices_one_query, dists_one_query, nFaces_UpBound, ::flann::SearchParams(16)); //::flann::SearchParams(128)
       memcpy(indices[i], indices_one_query[0], sizeof(FEATURE_TYPE)*nFaces_UpBound);
       memcpy(dists[i], dists_one_query[0], sizeof(int)*nFaces_UpBound);
       //waitKey(0);
@@ -777,6 +779,178 @@ void retrieval_on_lfw(LightFaceRecognizer recognizer,
   delete [] indices.ptr();
 }
 
+void retrieval_on_lfw_by_FaceRepo(LightFaceRecognizer & recognizer,
+    CascadeClassifier &cascade) {
+
+  string lfw_indices_file = "../../../lfw_data/lfw_indices.hdf5";
+  string lfw_dists_file = "../../../lfw_data/lfw_dists.hdf5";
+  string lfw_directory = "../../../lfw_data/result_FaceRepo";
+  string lfw_file_name = "../../../lfw_data/lfw_file_name.txt";
+  string lfw_same_face_count = "../../../lfw_data/lfw_same_face_count.txt";
+
+  FaceRepo faceRepo(recognizer, cascade);
+
+  // Try load existed index. Create index if load failed, which takes quite a long time.
+  bool bFreshRun = !faceRepo.Load(lfw_directory);
+  if (bFreshRun) {
+    long time1 = clock();
+    faceRepo.InitialIndex(lfw_file_name);
+    long time2 = clock();
+    // Save index and features.
+    faceRepo.Save(lfw_directory);
+  }
+
+  //// Rebuild index
+  //faceRepo.RebuildIndex();
+
+  // load dataset features 
+  ::flann::Matrix<FEATURE_TYPE> dataset;
+  ::flann::load_from_file(dataset, lfw_directory+"/dataset.hdf5", "dataset");
+  // load all path of faces in the dataset 
+  vector <string> data_file_path;
+  ifstream inFile(lfw_file_name);
+  string line;
+  while (getline(inFile, line)) {
+    data_file_path.push_back(line);
+  }
+  
+  // Read face count
+  int N = faceRepo.GetFaceNum();
+  vector<int> face_count(N, 0);
+  ifstream ifs_face_count(lfw_same_face_count.c_str());
+  for (int i = 0; getline(ifs_face_count, line); i++) {
+    face_count[i] = atoi(line.c_str());  
+  }
+  ifs_face_count.close();
+
+  // Do retrieval
+  int nFaces_UpBound = 100;  // Up bound of retrieval faces
+  ::flann::Matrix<FEATURE_TYPE> dists;
+  ::flann::Matrix<int> indices;
+  //if (bFreshRun) {
+  if (true) {
+    long time3 = clock();
+    // Search result matrix
+    dists = ::flann::Matrix<FEATURE_TYPE> (new FEATURE_TYPE[N*nFaces_UpBound], N, nFaces_UpBound);
+    indices = ::flann::Matrix<int> (new int[N*nFaces_UpBound], N, nFaces_UpBound);
+    // Search one by one
+    for (int i = 0; i < N; i++) {
+      //cout<<i<<": "<<query[0][FEATURE_DIM-1]<<"\t"<<dataset[i][FEATURE_DIM-1]<<endl;
+      vector<vector<string> > return_list;
+      vector<vector<int> > return_list_pos;
+      vector<vector<float> > return_dists;
+      faceRepo.Query(::flann::Matrix<FEATURE_TYPE>(dataset[i], 1, FEATURE_DIM), nFaces_UpBound, return_list, return_list_pos, return_dists);
+      for (int j = 0; j < nFaces_UpBound; j++) {
+        indices[i][j] = return_list_pos[0][j];
+        dists[i][j] = return_dists[0][j];
+      }
+      //waitKey(0);
+    }
+    // Remove existed hdf5 files, otherwise an error will happen when size, of the data to be written, exceed the existed ones.
+    remove(lfw_dists_file.c_str());
+    remove(lfw_indices_file.c_str());
+    ::flann::save_to_file(dists, lfw_dists_file, "dists");
+    ::flann::save_to_file(indices, lfw_indices_file, "indices");
+    long time4 = clock();
+    cout<<"Query time:\t"<<float(time4-time3)/1000000<<" sec., ";
+    cout<<float(time4-time3)/N<<" us per query."<<endl;
+  }
+  else {
+    ::flann::load_from_file(dists, lfw_dists_file, "dists");
+    ::flann::load_from_file(indices, lfw_indices_file, "indices");
+  }
+
+  // Statistics
+  vector<int> num_person(nFaces_UpBound, 0); // number of person who have more than XX faces
+  vector< vector<float> > precision_per_rank;
+  vector< vector<int> > correct;
+  for (int i = 0; i < nFaces_UpBound; i++) {
+    precision_per_rank.push_back(vector<float>(nFaces_UpBound, 0));
+    correct.push_back(vector<int>(N, 0));
+  }
+  for (int i = 0; i < N; i++) {
+    string class_name = fs::canonical(data_file_path[i]).parent_path().filename().string();
+    for (int j = 0; j < nFaces_UpBound; j++) {
+      if (face_count[i] < j + 1)
+        break;
+      num_person[j]++;
+      string class_name_j = fs::canonical(data_file_path[indices[i][j]]).parent_path().filename().string();
+      if (class_name_j == class_name) {
+        correct[j][i] = 1;
+      }
+    }
+  }
+  for (int i = 0; i < N; i++) {
+    for (int k = 0; k < nFaces_UpBound; k++) {
+      if (face_count[i] > k) {
+        for (int j = 0; j <= k; j++) {
+          for (int m = j; m <= nFaces_UpBound; m++) {
+            precision_per_rank[k][m] += correct[j][i];
+          }
+        }
+      }
+    }
+  }
+  for (int k = 0; k < nFaces_UpBound; k++) {
+    for (int j = 0; j <= k; j++) {
+      precision_per_rank[k][j] /= (num_person[k] * (j+1) );
+    }
+  }
+
+  // Print results.
+  for (int i = 0; i < nFaces_UpBound; i++) {
+    if (num_person[i] < 1)
+      break;
+    cout<<"--------------------------------------------------"<<endl;
+    cout<<"Person who have "<<i+1<<" faces: "<<num_person[i]<<" persons"<<endl;
+    cout<<"Precision per rank:"<<endl;
+    for (int j = 0; j <= i; j++) {
+      cout<<"Rank #"<<j+1<<": "<<precision_per_rank[i][j]<<endl;
+    }
+    cout<<endl;
+  }
+
+  delete [] dists.ptr();
+  delete [] indices.ptr();
+}
+
+void testFaceRepo(LightFaceRecognizer &recognizer, CascadeClassifier &cascade){
+  FaceRepo faceRepo(recognizer, cascade);
+  string txtFile = string("../../../test_faces.txt");
+  //string queryFile = string("../../../test_faces.txt");
+  string queryFile = string("../../../all.txt");
+  string addFile = string("../../../more.txt");
+  string removeFile = string("../../../test_faces/Abdullah_Gul_0003.jpg");
+  string removeFile2 = string("../../../test_faces/Dennis_Hastert_0001.jpg");
+  string directory = string("./test_old"); 
+  string directory_save = string("./test"); 
+  
+  //faceRepo.InitialIndex(txtFile);
+  //faceRepo.Save(directory);
+
+  faceRepo.Load(directory);
+  faceRepo.AddFace(addFile);
+
+  faceRepo.RemoveFace(removeFile);
+  faceRepo.RemoveFace(removeFile2);
+  faceRepo.RebuildIndex();
+
+  faceRepo.Save(directory_save);
+
+  vector<vector<string> > return_list;
+  vector<vector<int> > return_list_pos;
+  vector<vector<float> > dists;
+  int num_return = 10;
+  faceRepo.Query(queryFile, num_return, return_list, return_list_pos, dists);
+  for (int i = 0; i < return_list.size(); i++) {
+    cout<<"Query "<<i<<":"<<endl;
+    for (int j = 0; j < num_return; j++) {
+      cout<<"#"<<j<<": "<<return_list_pos[i][j]<<" ("<<dists[i][j]<<"), "<<return_list[i][j]<<endl;
+    }
+    cout<<endl;
+  }
+}
+
 int main(int argc, char **argv) {
   // Init Recognizer
   // void *recognizer = InitRecognizer("../../models/big/big.prototxt",
@@ -801,8 +975,11 @@ int main(int argc, char **argv) {
   //FaceSearch(recognizer, cascade, argv[1], argv[2]);
 
   //Index(recognizer, cascade, argv[1], argv[2], 20);
-  Index(recognizer, cascade, argv[1]);
+  //Index(recognizer, cascade, argv[1]);
   //Query(recognizer, cascade, argv[1] ); // Need index first
   //retrieval_on_lfw(recognizer, cascade);  
+  
+  //testFaceRepo(recognizer, cascade);
+  retrieval_on_lfw_by_FaceRepo(recognizer, cascade);  
   return 0;
 }

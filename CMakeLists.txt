@@ -50,7 +50,6 @@ add_definitions(${Caffe_DEFINITIONS})
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-set(flann_)
 find_package(Flann REQUIRED)
 include_directories(${FLANN_INCLUDE_DIRS})
 
@@ -69,9 +68,11 @@ endif()
 
 
 add_library (face_rec_srzn SHARED 
+  src/face_repository.cpp
   src/face_recognition.cpp
   src/classifier.cpp
   src/bayesian_model/BayesianModel.cpp
+  include/face_repository.hpp
   include/face_recognition.hpp 
   config.h.in)
 #target_include_directories (face_rec_srzn PUBLIC ./include )
@@ -85,7 +86,7 @@ add_executable(lfw_val
 target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS})
 
 set_target_properties(face_rec_srzn PROPERTIES
-  PUBLIC_HEADER "include/face_recognition.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
+  PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
   VERSION ${FaceRecSrzn_VERSION})
 
 add_subdirectory(lfw_test)
