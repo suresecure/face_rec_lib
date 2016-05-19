@@ -122,6 +122,68 @@ Mat detectAlignCrop(const Mat &img, CascadeClassifier &cascade,
   return Mat(after_aligned_org, roi);
 }
 
+/*
+ * The formal detectAlignCrop() function is mainly for lfw images, 
+ * where left-top corner is returned if no face detected.
+ * This function will return empty Mat in this case. 
+ */
+Mat detectAlignCropPractical(const Mat &img, CascadeClassifier &cascade,
+    LightFaceRecognizer &recognizer) {
+  vector<Rect> faces;
+  Mat gray, gray_org;
+
+  cvtColor(img, gray_org, CV_BGR2GRAY);
+  equalizeHist(gray_org, gray);
+
+  // --Detection
+  cascade.detectMultiScale(gray, faces, 1.1, 2,
+      0
+      //|CV_HAAR_FIND_BIGGEST_OBJECT
+      //|CV_HAAR_DO_ROUGH_SEARCH
+      |
+      CV_HAAR_SCALE_IMAGE,
+      Size(30, 30));
+  Rect max_face;
+  if (faces.size() <= 0) {
+    cout << "Cannot detect face!\n";
+    return Mat();
+  }
+
+  // --Alignment
+  max_face = FindMaxFace(faces);
+
+  Mat after_aligned, after_aligned_org;
+  recognizer.FaceAlign(gray_org, max_face, after_aligned_org);
+  equalizeHist(after_aligned_org, after_aligned);
+
+  // detect faces on aligned image again
+  faces.clear();
+  cascade.detectMultiScale(after_aligned, faces, 1.1, 2,
+      0
+      //|CV_HAAR_FIND_BIGGEST_OBJECT
+      //|CV_HAAR_DO_ROUGH_SEARCH
+      |
+      CV_HAAR_SCALE_IMAGE,
+      Size(30, 30));
+
+  if (faces.size() <= 0) {
+    cout << "Cannot detect face after aligned!\n";
+    return Mat();
+  }
+  max_face = FindMaxFace(faces);
+  Rect roi;
+  //recognizer.CropFace(gray, max_face, roi);
+  recognizer.CropFace(after_aligned, max_face, roi);
+  //cout<<faces.size()<<endl;
+  //for (int i = 0; i < faces.size(); i++)
+    //cout<<faces[i].size()<<endl;
+  //cout<<endl;
+  //cout<<"max_face: "<<max_face<<endl;
+  //cout<<"roi: "<<roi<<endl;
+  //cout<<"Aligned image size: "<<after_aligned.size()<<endl;
+  return Mat(after_aligned_org, roi);
+}
+
 void validate_on_lfw_data(LightFaceRecognizer &recognizer) {
   ifstream pairs_file("../../../lfw_data/pairs.txt");
 
@@ -260,7 +322,8 @@ float FaceVerification(LightFaceRecognizer &recognizer,
   return similarity;
 }
 
-void FaceSearch(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
+/*
+ void FaceSearch(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
     const string &target_name, const string &dir_name) {
   Mat target_face = imread(target_name);
   Mat target_face_cropped = detectAlignCrop(target_face, cascade, recognizer);
@@ -270,7 +333,7 @@ void FaceSearch(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
   recognizer.ExtractFaceFeature(target_face_cropped, target_face_feat);
   vector<fs::path> files;
   // vector<float> distances;
-  vector<pair<fs::path, float>> distances;
+  vector<pair<fs::path, float> > distances;
   get_all("../../../test_faces", ".jpg", files);
   for (int i = 0; i < files.size(); ++i) {
     //cout << files[i].string() << "\t";
@@ -318,6 +381,7 @@ void FaceSearch(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
   //<< "\tBayesian distance: " << bayesian_distance << endl;
   // return similarity;
 }
+*/
 
 namespace flann 
 {
@@ -626,6 +690,312 @@ void Query(LightFaceRecognizer &recognizer,
   delete [] query.ptr();
 }
 
+void IndexWithoutCrop(LightFaceRecognizer &recognizer, 
+    CascadeClassifier &cascade,
+    const string &filelist, 
+    const string& dataset_file=string("dataset.hdf5"), 
+    const string& index_file=string("index.hdf5"), 
+    const string& dataset_path_file=string("dataset_file_path.txt") ) {
+  long time1 = clock();
+  int N = 0;
+  ifstream file_list(filelist.c_str());
+  string line;
+  while (getline(file_list, line)) {
+    N++;
+  }
+
+  if (0 == N)
+  {
+    cerr<<"FLANN index: wrong input file list!"<<endl;
+    exit(-1);
+  }
+
+  ::flann::Matrix<FEATURE_TYPE> dataset(new FEATURE_TYPE[N*FEATURE_DIM], 
+      N, FEATURE_DIM); 
+  vector<string> file_path;
+
+  file_list.clear();
+  file_list.seekg(0, ios::beg);
+
+  for (int i = 0; i < N; i++) {
+    getline(file_list, line);
+    line = fs::canonical(line).string();
+    cout<<i<<":\t"<<line<<"\n";
+    Mat face = imread(line);
+    //Mat face_cropped = detectAlignCrop(face, cascade, recognizer);
+    Mat & face_cropped = face;
+    //imshow("face_cropped", face_cropped);
+    //waitKey(0);
+    Mat face_feature;
+    recognizer.ExtractFaceFeature(face_cropped, face_feature);
+    memcpy(dataset[i], face_feature.data, sizeof(FEATURE_TYPE)*FEATURE_DIM);
+    file_path.push_back(line);
+    //cout<<face_feature.at<FEATURE_TYPE>(82)<<"\t"<<dataset[i][82]<<endl;
+    /*
+    // Test L2-normalized feature
+    double sum = 0, max = 0;
+    for (int k = 0; k < FEATURE_DIM; k++) {
+      sum += face_feature.at<FEATURE_TYPE>(k) * face_feature.at<FEATURE_TYPE>(k);
+      max = max > face_feature.at<FEATURE_TYPE>(k) ? max : face_feature.at<FEATURE_TYPE>(k);
+    }
+    cout<<"Feature sum: "<<sum<<"; max: "<<max<<endl;
+    */
+  }
+  file_list.close();
+  long time2 = clock();
+
+  // Create index
+  //::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::LinearIndexParams(), ::flann::CosDistance<FEATURE_TYPE>());
+  ::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::AutotunedIndexParams());
+  index.buildIndex();
+  long time3 = clock();
+
+  // Save index to the disk
+  // Remove existed hdf5 files, otherwise an error will happen when size, of the data to be written, exceed the existed ones.
+  remove(dataset_file.c_str());
+  remove(index_file.c_str());
+  ::flann::save_to_file(dataset, dataset_file, "dataset");
+  index.save(index_file);
+  ofstream ofile(dataset_path_file.c_str());
+  ostream_iterator<string> output_iterator(ofile, "\n");
+  copy(file_path.begin(), file_path.end(), output_iterator);
+  long time4 = clock();
+
+  // Test search. Use the first face as query
+  int num_return = 10; 
+  ::flann::Matrix<FEATURE_TYPE> query(new FEATURE_TYPE[FEATURE_DIM], 
+      1, FEATURE_DIM); 
+  memcpy(query[0], dataset[0], sizeof(FEATURE_TYPE)*FEATURE_DIM);
+  ::flann::Matrix<int> indices(new int[num_return], 1, num_return);
+  ::flann::Matrix<float> dists(new float[num_return], 1, num_return);
+  index.knnSearch(query, indices, dists, num_return, ::flann::SearchParams(128)); //::flann::CHECKS_AUTOTUNED
+  long time5 = clock();
+  cout<<"Return list:"<<endl;
+  for (int i = 0; i < num_return; i++) {
+    cout<<"No. "<<setw(2)<<i<<":\t"<<file_path[indices[0][i]]<<"\tdist is\t"<<setprecision(6)<<dists[0][i]<<endl;
+  }
+
+  cout<<"Number of faces is\t"<<N<<endl;
+  cout<<"Time consume statistics : Total-time(sec.) | Average-time (us)"<<endl;
+  cout<<"Extract feature:\t"<<float(time2-time1)/1000000<<"\t"<<(time2-time1)/N<<endl;
+  cout<<"Create index:\t"<<float(time3-time2)/1000000<<"\t"<<(time3-time2)/N<<endl;
+  cout<<"Save to disk:\t"<<float(time4-time3)/1000000<<"\t"<<(time4-time3)/N<<endl;
+  cout<<"Search test:\t"<<float(time5-time4)<<endl;
+
+  delete [] indices.ptr();
+  delete [] dists.ptr();
+  delete [] dataset.ptr(); 
+  delete [] query.ptr(); 
+}
+
+
+void retrieval_test(LightFaceRecognizer & recognizer,
+    CascadeClassifier &cascade, 
+    const string &file_name,
+    const string &same_face_count,
+    const string &save_dir,
+    const bool bCrop = false  // Whether to do detectAlignCrop()
+    ) {
+
+  bool bFreshRun = false;  // If true, recreate index
+
+  fs::path save_root(save_dir);
+  if (!fs::exists(save_root) || !fs::is_directory(save_root))
+    fs::create_directories(save_root);
+
+  fs::path dataset_file = save_root;
+  dataset_file /= fs::path("dataset.hdf5");
+  fs::path index_file = save_root;
+  index_file /= fs::path("index.hdf5");
+  fs::path dataset_path_file = save_root;
+  dataset_path_file /= fs::path("dataset_file_path.txt");
+
+  // Create index. It may take a while depends on the number of images to be indexed.
+  if (bFreshRun) {
+    long time1 = clock();
+    if (bCrop)
+      Index(recognizer, cascade, file_name, dataset_file.string(), index_file.string(), dataset_path_file.string());
+    else
+      IndexWithoutCrop(recognizer, cascade, file_name, dataset_file.string(), index_file.string(), dataset_path_file.string());
+    long time2 = clock();
+  }
+
+  // load dataset features 
+  ::flann::Matrix<FEATURE_TYPE> dataset;
+  ::flann::load_from_file(dataset, dataset_file.string(), "dataset");
+  // load all path of faces in the dataset 
+  vector <string> data_file_path;
+  ifstream inFile(dataset_path_file.string().c_str());
+  string line;
+  while (getline(inFile, line)) {
+    data_file_path.push_back(line);
+  }
+  // load the index 
+  //::flann::Index< ::flann::CosDistance<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file), ::flann::CosDistance<FEATURE_TYPE>());
+  ::flann::Index< ::flann::L2<FEATURE_TYPE> > index(dataset, ::flann::SavedIndexParams(index_file.string()));
+  int N = data_file_path.size();
+
+  // read face count
+  int n = data_file_path.size();
+  vector<int> face_count(n, 0);
+  ifstream ifs_face_count(same_face_count.c_str());
+  for (int i = 0; getline(ifs_face_count, line); i++) {
+    face_count[i] = atoi(line.c_str());  
+  }
+  ifs_face_count.close();
+
+  // Do retrieval
+  int nFaces_UpBound = N > 100 ? 100 : N - 1;  // Up bound of retrieval faces
+  ::flann::Matrix<FEATURE_TYPE> dists;
+  ::flann::Matrix<int> indices;
+  long time3 = clock();
+  // Search result matrix
+  dists = ::flann::Matrix<FEATURE_TYPE> (new FEATURE_TYPE[N*nFaces_UpBound], N, nFaces_UpBound);
+  indices = ::flann::Matrix<int> (new int[N*nFaces_UpBound], N, nFaces_UpBound);
+  // Do search. Here query = dataset.
+  // The following method may run out of memory.
+  //::flann::Matrix<FEATURE_TYPE> query(dataset.ptr(), N, FEATURE_DIM);
+  //index.knnSearch(query, indices, dists, nFaces_UpBound, ::flann::SearchParams(128)); //::flann::CHECKS_AUTOTUNED
+  // Search one by one
+  ::flann::Matrix<FEATURE_TYPE> query(new FEATURE_TYPE[FEATURE_DIM], 1, FEATURE_DIM);
+  ::flann::Matrix<FEATURE_TYPE> dists_one_query(new FEATURE_TYPE[nFaces_UpBound], 1, nFaces_UpBound);
+  ::flann::Matrix<int> indices_one_query(new int[nFaces_UpBound], 1, nFaces_UpBound);
+  for (int i = 0; i < N; i++) {
+    memcpy(query[0], dataset[i], sizeof(FEATURE_TYPE)*FEATURE_DIM);
+    //cout<<i<<": "<<query[0][FEATURE_DIM-1]<<"\t"<<dataset[i][FEATURE_DIM-1]<<endl;
+    index.knnSearch(query, indices_one_query, dists_one_query, nFaces_UpBound, ::flann::SearchParams(::flann::FLANN_CHECKS_AUTOTUNED)); //::flann::SearchParams(128)
+    //index.knnSearch(query, indices_one_query, dists_one_query, nFaces_UpBound, ::flann::SearchParams(16)); //::flann::SearchParams(128)
+    memcpy(indices[i], indices_one_query[0], sizeof(FEATURE_TYPE)*nFaces_UpBound);
+    memcpy(dists[i], dists_one_query[0], sizeof(int)*nFaces_UpBound);
+    //waitKey(0);
+  }
+  long time4 = clock();
+  cout<<"Query time:\t"<<float(time4-time3)/1000000<<" sec., ";
+  cout<<float(time4-time3)/N<<" us per query."<<endl;
+
+  // Retrieval statistics
+  cout<<endl;
+  cout<<"**************************************"<<endl;
+  cout<<"RETRIEVAL STATISTICS"<<endl;
+  vector<int> num_images(nFaces_UpBound, 0); // number of images who have more than XX faces
+  vector< vector<float> > precision_per_rank;
+  vector< vector<int> > correct;
+  for (int i = 0; i < nFaces_UpBound; i++) {
+    precision_per_rank.push_back(vector<float>(nFaces_UpBound, 0));
+    correct.push_back(vector<int>(N, 0));
+  }
+  for (int i = 0; i < N; i++) {
+    string class_name = fs::canonical(data_file_path[i]).parent_path().filename().string();
+    for (int j = 0; j < nFaces_UpBound; j++) {
+      if (face_count[i] < j + 1)
+        break;
+      num_images[j]++;
+      string class_name_j = fs::canonical(data_file_path[indices[i][j]]).parent_path().filename().string();
+      if (class_name_j == class_name) {
+        correct[j][i] = 1;
+      }
+    }
+  }
+
+  for (int i = 0; i < N; i++) {
+    for (int k = 0; k < nFaces_UpBound; k++) {
+      if (face_count[i] > k) {
+        for (int j = 0; j <= k; j++) {
+          for (int m = j; m <= nFaces_UpBound; m++) {
+            precision_per_rank[k][m] += correct[j][i];
+          }
+        }
+      }
+    }
+  }
+  for (int k = 0; k < nFaces_UpBound; k++) {
+    for (int j = 0; j <= k; j++) {
+      precision_per_rank[k][j] /= (num_images[k] * (j+1) );
+    }
+  }
+
+  for (int i = 0; i < nFaces_UpBound; i++) {
+    if (num_images[i] < 1)
+      break;
+    cout<<"--------------------------------------------------"<<endl;
+    cout<<"Images who have "<<i+1<<" faces: "<<num_images[i]<<" images"<<endl;
+    cout<<"Precision per rank:"<<endl;
+    for (int j = 0; j <= i; j++) {
+      cout<<"Rank #"<<j+1<<": "<<precision_per_rank[i][j]<<endl;
+    }
+    cout<<endl;
+  }
+
+  // Validation statistics
+  cout<<endl;
+  cout<<"**************************************"<<endl;
+  cout<<"VALIDATION STATISTICS"<<endl;
+  int n_class = 6; // Least number of faces for a person.
+  int knn = 10; // Size of return knn;
+  float th_dist = 0.6; // Distance threshold for same person.
+  int th_n = 2; // Least number of retrieved knn with same label.
+  int num_valid_test = 0;
+  int num_correct_accept = 0;
+  int num_wrong_accept = 0;
+  int num_reject = 0;
+  for (int i = 0; i < N; i++) {
+    if (face_count[i] < n_class)
+      continue;
+    num_valid_test++; 
+    // True class name.
+    string class_name = fs::canonical(data_file_path[i]).parent_path().filename().string();
+    // Analyze the returned knn:
+    vector <string> class_name_return;
+    vector <float> dist_return;
+    vector <int> count_same_class;
+    for (int j = 0; j < knn; j++) {
+      if (dists[i][j] > th_dist)
+        continue;
+      string class_name_j = fs::canonical(data_file_path[indices[i][j]]).parent_path().filename().string();
+      vector<string>::iterator iter = find(class_name_return.begin(), class_name_return.end(), class_name_j);
+      if ( iter == class_name_return.end() ) {
+        class_name_return.push_back(class_name_j);
+        dist_return.push_back(dists[i][j]);
+        count_same_class.push_back(1);
+      } else {
+        int pos = iter - class_name_return.begin();
+        dist_return[pos] += dists[i][j];
+        count_same_class[pos] ++;
+      }
+    }
+    cout<<data_file_path[i]<<endl;
+    cout<<"True class name: "<<class_name<<", number of groups in knn:"<<class_name_return.size()<<endl;
+    float min_dist = 10000.0;
+    string predict_class_name;
+    for (int j = 0; j < class_name_return.size(); j++) {
+      dist_return[j] /= count_same_class[j];
+      if (dist_return[j] < min_dist && count_same_class[j] > th_n) {
+        min_dist = dist_return[j];
+        predict_class_name = class_name_return[j];
+      }
+      cout<<j<<": "<<class_name_return[j]<<", count: "<<count_same_class[j]<<", ave dist: "<<dist_return[j]<<endl;
+    }
+    if (10000.0 == min_dist) {
+      num_reject ++;
+      continue;
+    }
+    if (predict_class_name == class_name)
+      num_correct_accept++;
+    else
+      num_wrong_accept++;
+    cout<<endl;
+  }
+  cout<<"----------------------------------------------"<<endl;
+  cout<<"Number of valid validation test: "<<num_valid_test<<endl;
+  cout<<"Number of correct accept: "<<num_correct_accept<<", "<<(float)num_correct_accept/num_valid_test*100<<endl;
+  cout<<"Number of wrong accept: "<<num_wrong_accept<<", "<<(float)num_wrong_accept/num_valid_test*100<<endl;
+  cout<<"Number of reject: "<<num_reject<<", "<<(float)num_reject/num_valid_test*100<<endl;
+
+  delete [] dataset.ptr();
+  delete [] dists.ptr();
+  delete [] indices.ptr();
+}
+
 void retrieval_on_lfw(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade) {
 
@@ -808,7 +1178,7 @@ void retrieval_on_lfw_batch(LightFaceRecognizer & recognizer,
   ::flann::load_from_file(dataset, lfw_directory+"/dataset.hdf5", "dataset");
   // load all path of faces in the dataset 
   vector <string> data_file_path;
-  ifstream inFile(lfw_file_name);
+  ifstream inFile(lfw_file_name.c_str());
   string line;
   while (getline(inFile, line)) {
     data_file_path.push_back(line);
@@ -918,6 +1288,8 @@ void retrieval_on_lfw(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade, 
     const string & query,
     const size_t num_return = 10) {
+    //size_t num_return = 10) {
+  //num_return = 13233;
   string lfw_directory = "../../../lfw_data/dataset_FaceRepo";
   string lfw_file_name = "../../../lfw_data/lfw_file_name.txt";
   // Try load existed index. Create index if load failed, which takes quite a long time.
@@ -939,7 +1311,7 @@ void retrieval_on_lfw(LightFaceRecognizer & recognizer,
 
   cout<<"Return list of \""<<query<<"\" in LFW dataset:"<<endl;
   for (int i = 0; i < num_return; i++)
-    cout<<"#"<<i<<": "<<return_list[0][i]<<endl;
+    cout<<"#"<<i<<": "<<return_list[0][i]<<", dist is: "<<return_dists[0][i]<<endl;
 }
 
 void testFaceRepo(LightFaceRecognizer &recognizer, CascadeClassifier &cascade){
@@ -979,6 +1351,48 @@ void testFaceRepo(LightFaceRecognizer &recognizer, CascadeClassifier &cascade){
   }
 }
 
+void FindValidFace(LightFaceRecognizer &recognizer, 
+    CascadeClassifier &cascade,
+    const string &image_root,
+    const string &save_path,
+    const string &ext = string(".jpg")) {
+
+  // Read image file list 
+  vector<fs::path> file_path;
+
+  fs::path root(image_root); 
+  get_all(root, ext, file_path);
+  int N = file_path.size();
+  if (0 == N)
+  {
+    cerr<<"No image found in the given path with \""<<ext<<"\" extension."<<endl;
+    exit(-1);
+  }
+
+  // Detect face, then save to the disk.
+  cout<<"Image(s):"<<endl;
+  for (int i = 0; i < N; i++) {
+    cout<<file_path[i]<<endl; 
+    Mat face = imread(file_path[i].string());
+    Mat face_cropped = detectAlignCropPractical(face, cascade, recognizer);
+    if (face_cropped.empty())
+      continue;
+
+    //imshow("face_cropped", face_cropped);
+    //waitKey(0);
+
+    // Save to the disk.
+    string relative_path = fs::canonical(file_path[i]).string().substr(fs::canonical(root).string().length());
+    //cout<<relative_path<<endl;
+    fs::path dest_path(save_path); 
+    dest_path += fs::path(relative_path);
+    fs::create_directories(dest_path.parent_path());
+    cout<<"Save detected face to: "<<dest_path<<endl;
+    imwrite(dest_path.string(), face_cropped);
+  }
+
+}
+
 int main(int argc, char **argv) {
   // Init Recognizer
   // void *recognizer = InitRecognizer("../../models/big/big.prototxt",
@@ -1009,11 +1423,15 @@ int main(int argc, char **argv) {
   
   //testFaceRepo(recognizer, cascade);
 
-  if (1 == argc)
-    // Do query for each image in lfw dataset, and do statistic for the result.
-    retrieval_on_lfw_batch(recognizer, cascade);  
-  else
-    // Do query in lfw dataset for the input image. 
-    retrieval_on_lfw(recognizer, cascade, argv[1]);  
+  //if (1 == argc)
+    //// Do query for each image in lfw dataset, and do statistic for the result.
+    //retrieval_on_lfw_batch(recognizer, cascade);  
+  //else
+    //// Do query in lfw dataset for the input image. 
+    //retrieval_on_lfw(recognizer, cascade, argv[1]);  
+
+  //FindValidFace(recognizer, cascade, argv[1], argv[2]);
+
+  retrieval_test(recognizer, cascade, argv[1], argv[2], argv[3]);
   return 0;
 }

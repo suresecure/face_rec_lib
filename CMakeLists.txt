@@ -49,7 +49,8 @@ add_definitions(${Caffe_DEFINITIONS})
 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
-find_package(Boost REQUIRED)
+#find_package(Boost REQUIRED)
+find_package(Boost COMPONENTS filesystem system REQUIRED)
 include_directories(${Boost_INCLUDE_DIRS})
 find_package(Flann REQUIRED)
 include_directories(${FLANN_INCLUDE_DIRS})
@@ -85,6 +86,10 @@ add_executable(lfw_val
   
 #target_include_directories (lfw_val PRIVATE ./include )
 target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
+
+add_executable(lfw_test/test 
+  lfw_test/test.cpp)
+target_link_libraries(lfw_test/test face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
 
 set_target_properties(face_rec_srzn PROPERTIES
   PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
