@@ -50,6 +50,7 @@ namespace face_rec_srzn {
     return max_face;
   }
 
+  /*
   Mat detectAlignCrop(const Mat &img, CascadeClassifier &cascade,
       LightFaceRecognizer &recognizer) {
     vector<Rect> faces;
@@ -103,7 +104,7 @@ namespace face_rec_srzn {
     recognizer.CropFace(gray, max_face, roi);
     return Mat(after_aligned_org, roi);
   }
-
+*/
   FaceRepo::FaceRepo(LightFaceRecognizer & recognizer,
       CascadeClassifier & cascade) : _cascade(cascade), _recognizer(recognizer)
   {
@@ -159,7 +160,8 @@ namespace face_rec_srzn {
       for (int i = 0; i < N; i++) {
         cout<<i<<"/"<<N<<": "<<_file_path[i]<<endl;
         Mat face = imread(_file_path[i]);
-        Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
+        Mat & face_cropped = face;
+        //Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
         Mat face_feature;
         _recognizer.ExtractFaceFeature(face_cropped, face_feature);
         memcpy(dataset[i], face_feature.data, sizeof(FEATURE_TYPE)*FEATURE_DIM);
@@ -391,7 +393,8 @@ namespace face_rec_srzn {
     for (int i = 0; i < N; i++) {
       //cout<<query_list[i]<<endl; 
       Mat face = imread(query_list[i]);
-      Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
+      Mat & face_cropped = face;
+      //Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
       //imshow("face_cropped", face_cropped);
       //waitKey(0);
       Mat face_feature;
@@ -467,7 +470,8 @@ namespace face_rec_srzn {
       for (int i = 0; i < N; i++) {
         cout<<i<<"/"<<N<<": "<<filelist[i]<<endl;
         Mat face = imread(filelist[i]);
-        Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
+        Mat & face_cropped = face;
+        //Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
         Mat face_feature;
         _recognizer.ExtractFaceFeature(face_cropped, face_feature);
         memcpy(dataset[i], face_feature.data, sizeof(FEATURE_TYPE)*FEATURE_DIM);

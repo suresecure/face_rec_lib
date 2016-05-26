@@ -13,9 +13,9 @@
 #include "flann/flann.hpp"
 #include "flann/io/hdf5.h"
 #include "face_repository.hpp"
-
-#define  FEATURE_DIM (160) 
-typedef float FEATURE_TYPE;
+#include "dlib/opencv.h"
+#include "dlib/image_processing/frontal_face_detector.h"
+#include "face_align.h"
 
 namespace fs = ::boost::filesystem;
 
@@ -23,6 +23,8 @@ using namespace cv;
 using namespace std;
 using namespace face_rec_srzn;
 
+#define  FEATURE_DIM (160) 
+typedef float FEATURE_TYPE;
 string cascadeName = "../../../face_rec_models/haarcascade_frontalface_alt.xml";
 
 std::vector<std::string> &split(const std::string &s, char delim,
@@ -183,6 +185,30 @@ Mat detectAlignCropPractical(const Mat &img, CascadeClassifier &cascade,
   //cout<<"roi: "<<roi<<endl;
   //cout<<"Aligned image size: "<<after_aligned.size()<<endl;
   return Mat(after_aligned_org, roi);
+}
+
+/*
+ * Find and crop face by dlib.
+ */
+Mat detectAlignCropDlib(FaceAlign & face_align, const Mat &img) {
+  // Detection
+  /* Dlib detects a face larger than 80x80 pixels.
+   * We can use pyramid_up to double the size of image,
+   * then dlib can find faces in size of 40x40 pixels in the original image.*/
+  // dlib::pyramid_up(img);
+  dlib::cv_image<dlib::bgr_pixel> cimg(img);
+  // std::vector<dlib::rectangle> dets = face_align.getAllFaceBoundingBoxes(cimg);
+  std::vector<dlib::rectangle> dets;
+  dets.push_back(face_align.getLargestFaceBoundingBox(cimg)); // Use the largest detected face only
+  // cout<<dets[0]<<endl; // position of the largest detected face
+  if (0 == dets.size() || dets[0].is_empty())
+  {
+    cout << "Cannot detect face!\n";
+    return Mat();
+  }
+
+  // --Alignment
+  return face_align.align(cimg, dets[0]);
 }
 
 void validate_on_lfw_data(LightFaceRecognizer &recognizer) {
@@ -589,6 +615,43 @@ void FindValidFace(LightFaceRecognizer &recognizer,
   }
 }
 
+void FindValidFaceDlib(FaceAlign & face_align, 
+    const string &image_root,
+    const string &save_path,
+    const string &ext = string(".jpg")) {
+
+  // Read image file list 
+  vector<fs::path> file_path;
+
+  fs::path root(image_root); 
+  get_all(root, ext, file_path);
+  int N = file_path.size();
+  if (0 == N)
+  {
+    cerr<<"No image found in the given path with \""<<ext<<"\" extension."<<endl;
+    exit(-1);
+  }
+
+  // Detect face, then save to the disk.
+  cout<<"Image(s):"<<endl;
+  for (int i = 0; i < N; i++) {
+    cout<<file_path[i]<<endl; 
+    Mat face = imread(file_path[i].string());
+    Mat face_cropped = detectAlignCropDlib(face_align, face);
+    if (face_cropped.empty())
+      continue;
+
+    // Save to the disk.
+    string relative_path = fs::canonical(file_path[i]).string().substr(fs::canonical(root).string().length());
+    //cout<<relative_path<<endl;
+    fs::path dest_path(save_path); 
+    dest_path += fs::path(relative_path);
+    fs::create_directories(dest_path.parent_path());
+    cout<<"Save detected face to: "<<dest_path<<endl;
+    imwrite(dest_path.string(), face_cropped);
+  }
+}
+
 void retrieval_test(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade, 
     const string &file_name,
@@ -718,7 +781,7 @@ void retrieval_test(LightFaceRecognizer & recognizer,
   cout<<"VALIDATION STATISTICS"<<endl;
   int n_class = 6; // Least number of faces for a person.
   int knn = 10; // Size of return knn;
-  float th_dist = 0.6; // Distance threshold for same person.
+  float th_dist = 0.8; // Distance threshold for same person.
   int th_n = 2; // Least number of retrieved knn with same label.
   int num_valid_test = 0;
   int num_correct_accept = 0;
@@ -734,9 +797,9 @@ void retrieval_test(LightFaceRecognizer & recognizer,
     vector <string> class_name_return;
     vector <float> dist_return;
     vector <int> count_same_class;
-    for (int j = 0; j < knn; j++) {
+    for (int j = 1; j < knn; j++) { //omit the first return (should the query itself)
       if (dists[i][j] > th_dist)
-        continue;
+        break;
       string class_name_j = fs::canonical(data_file_path[indices[i][j]]).parent_path().filename().string();
       vector<string>::iterator iter = find(class_name_return.begin(), class_name_return.end(), class_name_j);
       if ( iter == class_name_return.end() ) {
@@ -746,6 +809,7 @@ void retrieval_test(LightFaceRecognizer & recognizer,
       } else {
         int pos = iter - class_name_return.begin();
         dist_return[pos] += dists[i][j];
+        //dist_return[pos] += sqrt(j) * dists[i][j];
         count_same_class[pos] ++;
       }
     }
@@ -817,9 +881,15 @@ int main(int argc, char **argv) {
   //// argv[2]: Root path to save cropped face images.
   //FindValidFace(recognizer, cascade, argv[1], argv[2]);
 
-  // argv[1]: txt file, stored all image file path
-  // argv[2]: txt file, stored the class size of the image
-  // argv[3]: Folder name to save the extracted features and other data.
-  retrieval_test(recognizer, cascade, argv[1], argv[2], argv[3]);
+  //// Detect and align face by using dlib.
+  //// argv[1]: Root path of face images; 
+  //// argv[2]: Root path to save cropped face images.
+  FaceAlign face_align("../../../face_rec_models/shape_predictor_68_face_landmarks.dat");
+  FindValidFaceDlib(face_align, argv[1], argv[2]);
+
+  //// argv[1]: txt file, stored all image file path
+  //// argv[2]: txt file, stored the class size of the image
+  //// argv[3]: Folder name to save the extracted features and other data.
+  //retrieval_test(recognizer, cascade, argv[1], argv[2], argv[3]);
   return 0;
 }
