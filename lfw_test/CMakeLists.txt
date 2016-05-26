@@ -3,7 +3,7 @@ project (face_rec_sample_lfw_test)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
-include(${CMAKE_SOURCE_DIR}/dlib/cmake)  # Static compile dlib
+include(../dlib/cmake)  # Static compile dlib
 
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})

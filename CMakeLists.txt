@@ -129,7 +129,7 @@ install(FILES lfw_test/lfw_test.cpp
 install(FILES  cmake/Modules/FindFlann.cmake
   DESTINATION lfw_test/cmake/Modules)
 install(FILES caffe_lib/libcaffe.so
-  caffe_lib/libcaffe.so.1.0.0-rc3
+  #caffe_lib/libcaffe.so.1.0.0-rc3
   DESTINATION lib)
 install(DIRECTORY dlib
-  DESTINATION dlib)
+  DESTINATION ${CMAKE_INSTALL_PREFIX})
