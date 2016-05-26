@@ -97,7 +97,7 @@ add_executable(lfw_val
   lfw_val/lfw_val.cpp) 
   
 #target_include_directories (lfw_val PRIVATE ./include )
-target_link_libraries(lfw_val dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
+target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
 
 add_executable(lfw_test/test 
   lfw_test/test.cpp
@@ -129,7 +129,7 @@ install(FILES lfw_test/lfw_test.cpp
 install(FILES  cmake/Modules/FindFlann.cmake
   DESTINATION lfw_test/cmake/Modules)
 install(FILES caffe_lib/libcaffe.so
-  #caffe_lib/libcaffe.so.1.0.0-rc3
+  caffe_lib/libcaffe.so.1.0.0-rc3
   DESTINATION lib)
 install(DIRECTORY dlib
   DESTINATION ${CMAKE_INSTALL_PREFIX})
