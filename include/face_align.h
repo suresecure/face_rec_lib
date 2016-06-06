@@ -24,13 +24,15 @@ public:
     cv::Mat align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,  
         dlib::rectangle bb=dlib::rectangle(),
         const int imgDim=224,
-        const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP);
+        const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+        const float scale_factor=0.0);
 
-private:
     // Landmark indices corresponding to the inner eyes and bottom lip.
     static const int INNER_EYES_AND_BOTTOM_LIP[];
     // Landmark indices corresponding to the inner eyes and bottom lip.
     static const int OUTER_EYES_AND_NOSE[];
+
+private:
     // Face landmark template data
     static float TEMPLATE_DATA[][2];
     // Face landmark template
@@ -41,6 +43,5 @@ private:
     dlib::frontal_face_detector detector;
     dlib::shape_predictor predictor;
 };
-
 }
 #endif // FACE_ALIGN_H

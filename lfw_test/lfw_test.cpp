@@ -407,7 +407,7 @@ void FaceSearch(LightFaceRecognizer &recognizer, CascadeClassifier &cascade,
   //<< "\tBayesian distance: " << bayesian_distance << endl;
   // return similarity;
 }
-
+/*
 void retrieval_on_lfw_batch(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade) {
 
@@ -614,7 +614,7 @@ void FindValidFace(LightFaceRecognizer &recognizer,
     imwrite(dest_path.string(), face_cropped);
   }
 }
-
+*/
 void FindValidFaceDlib(FaceAlign & face_align, 
     const string &image_root,
     const string &save_path,
@@ -651,7 +651,7 @@ void FindValidFaceDlib(FaceAlign & face_align,
     imwrite(dest_path.string(), face_cropped);
   }
 }
-
+/*
 void retrieval_test(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade, 
     const string &file_name,
@@ -845,7 +845,7 @@ void retrieval_test(LightFaceRecognizer & recognizer,
   delete [] dists.ptr();
   delete [] indices.ptr();
 }
-
+*/
 
 int main(int argc, char **argv) {
   // Init Recognizer

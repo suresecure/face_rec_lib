@@ -4,7 +4,6 @@
 #include "face_align.h"
 
 namespace face_rec_srzn {
-
 const int FaceAlign::INNER_EYES_AND_BOTTOM_LIP[] =  {3, 39, 42, 57};
 const int FaceAlign::OUTER_EYES_AND_NOSE[] = {3, 36, 45, 33};
 float FaceAlign::TEMPLATE_DATA[][2] =
@@ -51,7 +50,8 @@ FaceAlign::FaceAlign(const std::string & facePredictor)
     dlib::deserialize(facePredictor) >> predictor;
 
     TEMPLATE = cv::Mat(68, 2, CV_32FC1, TEMPLATE_DATA);
-    TEMPLATE.copyTo(FaceAlign::MINMAX_TEMPLATE);
+    TEMPLATE.copyTo(MINMAX_TEMPLATE);
+    // Column normalize template to (0,1). It will make the face landmarks tightly inside (0,1) box.
     cv::Mat temp, cp;
     for (int i=0; i<TEMPLATE.cols; i++)
     {
@@ -97,7 +97,8 @@ dlib::rectangle FaceAlign::getLargestFaceBoundingBox(dlib::cv_image<dlib::bgr_pi
 cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg, 
     dlib::rectangle bb,
     const int imgDim, 
-    const int landmarkIndices[])
+    const int landmarkIndices[],
+    const float scale_factor)
 {
     if (bb.is_empty())
         bb = this->getLargestFaceBoundingBox(rgbImg);
@@ -107,12 +108,39 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
     int nPoints = landmarkIndices[0];
     cv::Point2f srcPoints[nPoints];
     cv::Point2f dstPoints[nPoints];
+
+    cv::Mat template_face = TEMPLATE;
+    if (scale_factor > 0 && scale_factor < 1) {
+      template_face = MINMAX_TEMPLATE; 
+    } 
+
     for (int i=1; i<=nPoints; i++)
     {
         dlib::point p = landmarks.part(landmarkIndices[i]);
         srcPoints[i-1] = cv::Point2f(p.x(), p.y());
-        dstPoints[i-1] = cv::Point2f((float)imgDim * MINMAX_TEMPLATE.at<float>(landmarkIndices[i], 0),
-                (float)imgDim * MINMAX_TEMPLATE.at<float>(landmarkIndices[i], 1));
+        dstPoints[i-1] = cv::Point2f((float)imgDim * template_face.at<float>(landmarkIndices[i], 0),
+                (float)imgDim * template_face.at<float>(landmarkIndices[i], 1));
+        //std::cout<<dstPoints[i-1]<<std::endl;
+    }
+    float resize_factor = 1.0;
+    if (scale_factor > 0 && scale_factor < 1) {
+      // The first two landmarks (inner/outer eyes) and the third landmark (bottom lip/nose) form an isosceles triangle approximately.
+      float d1, d2, d3, h1, h2, h;
+      d1 = cv::norm(dstPoints[0] - dstPoints[1]);
+      d2 = cv::norm(dstPoints[2] - dstPoints[0]);
+      d3 = cv::norm(dstPoints[2] - dstPoints[1]);
+      h1 = std::sqrt(d2*d2 - d1*d1/4); // Height computed by landmark 0, 2
+      h2 = std::sqrt(d3*d3 - d1*d1/4); // Height computed by landmark 1, 3
+      h = (h1 + h2)/2; // Use their average
+      resize_factor = scale_factor/ h * imgDim;
+      //std::cout<<" "<<d1<<" "<<d2<<" "<<d3<<" "<<h1<<" "<<h2<<" "<<h<<" "<<resize_factor<<std::endl;
+    }
+    for (int i=0; i<nPoints; i++)
+    {
+        dstPoints[i] -= cv::Point2f(0.5*imgDim, 0.5*imgDim);
+        dstPoints[i] *= resize_factor;
+        dstPoints[i] += cv::Point2f(0.5*imgDim, 0.5*imgDim);
+        //std::cout<<dstPoints[i]<<std::endl;
     }
     cv::Mat H = cv::getAffineTransform(srcPoints, dstPoints);
     cv::Mat warpedImg = dlib::toMat(rgbImg);
