@@ -23,8 +23,8 @@ using namespace cv;
 using namespace std;
 using namespace face_rec_srzn;
 
-#define  FEATURE_DIM (160) 
-typedef float FEATURE_TYPE;
+//#define  FEATURE_DIM (160) 
+//typedef float FEATURE_TYPE;
 string cascadeName = "../../../face_rec_models/haarcascade_frontalface_alt.xml";
 
 // Face recognition parameters.
@@ -232,7 +232,7 @@ Mat detectAlignCropDlib(FaceAlign & face_align, const Mat &img) {
   //Mat ret = face_align.align(cimg, dets[0]);
   // The last argument control the size of face after align.
   // It is the proportion of the distance, which from the center point of inner eyes to the bottom lip, in the whole image.
-  // 0.3 is the best tuned to the SMALL CNN model's mean image.
+  // 0.3 is best tuned to the SMALL CNN model's mean image.
   Mat ret = face_align.align(cimg, dets[0], 224, FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3);
   long time5 = clock();
   //cout<<time2 - time1<<endl;
@@ -1162,8 +1162,15 @@ void retrieval_test_statistic(const int nFaces_UpBound,
       }
     }
   }
+  float minDist = 100, maxDist = 0; // To test the max and min distance in flann repository
   for (int i = 0; i < N; i++) {
     for (int k = 0; k < nFaces_UpBound; k++) {
+      // To test the max and min distance of flann repository
+      if (dists[i][k] < minDist)
+        minDist = dists[i][k];
+      if (dists[i][k] > maxDist)
+        maxDist = dists[i][k];
+
       if (face_count[i] > k) {
         for (int j = 0; j <= k; j++) {
           for (int m = j; m <= nFaces_UpBound; m++) {
@@ -1190,6 +1197,8 @@ void retrieval_test_statistic(const int nFaces_UpBound,
     }
     cout<<endl;
   }
+  cout<<"Max distance is: "<<maxDist<<endl;
+  cout<<"Min distance is: "<<minDist<<endl;
 
   // Recognition statistics
   cout<<endl;
@@ -2063,10 +2072,6 @@ void batch_do_recognition_test(LightFaceRecognizer & recognizer, FaceAlign &face
 //float TH_DIST = 0.1; // Distance threshold for same person.
 //int TH_N = 1; // Least number of retrieved knn with same label.
 
-    //vector<int> alter_th_n = {1, 2, 3, 4, 5};
-    //vector<float> alter_th_dist = {0.1, 0.2, 0.4, 0.6};
-    //for (int i = 0; i < alter_th_n.size(); i++)
-      //for (int j = 0; j < alter_th_dist.size(); j++) {
     int alter_th_n[] = {1, 2, 3, 4, 5};
     float alter_th_dist[] = {0.1, 0.2, 0.4, 0.6};
     for (int i = 0; i < 5; i++)
@@ -2083,9 +2088,14 @@ int main(int argc, char **argv) {
   //"../../models/big/big.caffemodel", "");
   LightFaceRecognizer recognizer(
       "../../../face_rec_models/model_cnn/small",
-      "../../../face_rec_models/model_face_alignment",
-      "../../../face_rec_models/model_bayesian/bayesian_model_lfw.bin", "prob",
-      false);
+      "../../../face_rec_models/model_bayesian/bayesian_model_lfw.bin", 
+      "prob", false);
+  //LightFaceRecognizer recognizer(
+      //"../../../face_rec_models/model_cnn/small",
+      //"../../../face_rec_models/model_face_alignment",
+      //"../../../face_rec_models/model_bayesian/bayesian_model_lfw.bin", "prob",
+      //false);
+
   FaceAlign face_align("../../../face_rec_models/shape_predictor_68_face_landmarks.dat");
 
   // validate_on_lfw_data(recognizer);

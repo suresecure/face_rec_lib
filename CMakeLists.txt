@@ -53,7 +53,7 @@ include_directories(
 find_package(Caffe REQUIRED)
 include_directories(${Caffe_INCLUDE_DIRS})
 include_directories(include)
-include_directories(face_alignment)
+#include_directories(face_alignment)
 include_directories(src/bayesian_model)
 add_definitions(${Caffe_DEFINITIONS})    
 
@@ -69,7 +69,7 @@ configure_file(config.h.in "${CMAKE_CURRENT_BINARY_DIR}/config.h" @ONLY)
 
 FIND_PACKAGE( OpenMP REQUIRED)
 
-add_subdirectory(face_alignment/align)
+#add_subdirectory(face_alignment/align)
 
 if(OPENMP_FOUND)
     message("OPENMP FOUND")
@@ -80,30 +80,32 @@ endif()
 
 
 add_library (face_rec_srzn SHARED 
-  src/face_repository.cpp
+  include/face_recognition.hpp 
   src/face_recognition.cpp
   src/classifier.cpp
   src/bayesian_model/BayesianModel.cpp
+  #include/face_align.h 
   #src/face_align.cpp
   include/face_repository.hpp
-  include/face_recognition.hpp 
-  #include/face_align.h 
+  src/face_repository.cpp
   config.h.in)
 #target_include_directories (face_rec_srzn PUBLIC ./include )
-target_link_libraries(face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES})
+#target_link_libraries(face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES})
+target_link_libraries(face_rec_srzn ${Caffe_LIBRARIES})
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-add_executable(lfw_val 
-  lfw_val/lfw_val.cpp) 
+#add_executable(lfw_val 
+  #lfw_val/lfw_val.cpp) 
   
 #target_include_directories (lfw_val PRIVATE ./include )
-target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
+#target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
 
 add_executable(lfw_test/test 
   lfw_test/test.cpp
   src/face_align.cpp
   include/face_align.h) 
-target_link_libraries(lfw_test/test dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+#target_link_libraries(lfw_test/test dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+target_link_libraries(lfw_test/test dlib face_rec_srzn ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
 
 set_target_properties(face_rec_srzn PROPERTIES
   PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"

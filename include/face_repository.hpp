@@ -12,8 +12,9 @@
 #include "face_recognition.hpp"
 #include "opencv2/opencv.hpp"
 
-#define FEATURE_DIM (160)
+#define FEATURE_DIM 160
 typedef float FEATURE_TYPE;
+#define CV_FEATURE_DATA_TYPE CV_32FC1
 
 namespace face_rec_srzn {
   using namespace std;
@@ -21,7 +22,7 @@ namespace face_rec_srzn {
 
   // Face repository class. Create face repository based on their feature. 
   // Support create, add, delete, query in the repo.
-  // Beware that FaceRepo supposes that the input image is a aligned face and it has no effect on face detection and alignment, so the input face images should be aligned before use.
+  // Beware that FaceRepo supposes that the input image is an aligned face and it has no effect on face detection and alignment, so the input face images should be aligned before use.
   class FaceRepo {
     public:
       //FaceRepo(LightFaceRecognizer & recognizer,
@@ -32,7 +33,7 @@ namespace face_rec_srzn {
       // Initial index from images whos paths specified in a ".txt" file. One face image per line.
       bool InitialIndex(string &path_list_file);
       // Initial index from images whos paths specified in a string vector. One face image per string.
-      bool InitialIndex(const vector<string> & filelist);
+      bool InitialIndex(const vector<string> & filelist, const vector<cv::Mat> & feature_list = vector<cv::Mat>());
 
       // Save face repository to the specified directory. Can customize file names. If any face add/remove after the initial index, FaceRepo::RebuildIndex() will be called before save.
       bool Save(const string & directory, 
@@ -58,13 +59,14 @@ namespace face_rec_srzn {
       // Do query by feature. 
       void Query(const ::flann::Matrix<FEATURE_TYPE> & query, const size_t & num_return, vector<vector<string> >& return_list, vector<vector<int> >& return_list_pos, vector<vector<float> > & dists);
       void Query(const vector<cv::Mat> & query, const size_t & num_return, vector<vector<string> >& return_list, vector<vector<int> >& return_list_pos, vector<vector<float> > & dists);
+      void Query(const cv::Mat & query, const size_t & num_return, vector<string>& return_list, vector<int>& return_list_pos, vector<float> & dists);
 
       // Rebuild flann index. If any face is added/removed after the initial index, the features matrices will be re-orgnized to a uniform one, where the removed faces will truely deleted. Return false if FLANN index is not actually rebuilt.
       bool RebuildIndex();
 
       // Add face(s) to the repository. FLANN will not rebuild index immediately. An automatic rebuild will be triged when the repository size doubled.
       bool AddFace(const string &file);
-      bool AddFace(const vector<string> & filelist);
+      bool AddFace(const vector<string> & filelist, const vector<cv::Mat> & feature_list = vector<cv::Mat>());
       // Remove one face from the repository. Just mark as removed, not really remove it. 
       bool RemoveFace(const string & face_path);
       bool RemoveFace(const size_t point_id);
@@ -72,7 +74,13 @@ namespace face_rec_srzn {
       // Get face feature from the repository.
       ::flann::Matrix<FEATURE_TYPE> GetFeature(const string & face_path);
       ::flann::Matrix<FEATURE_TYPE> GetFeature(const size_t point_id);
+      cv::Mat GetFeatureCV(const string & face_path);
+      cv::Mat GetFeatureCV(const size_t point_id);
       
+      // Get path or id from its counterpart.
+      int GetID(const string & face_path); // Return -1 if not found.
+      string GetPath(const size_t point_id); // Return "" if not found.
+
       // Get the total number of faces in the repository. 
       size_t GetFaceNum();
       // Get the number of valid faces in the repository (exclude faces marked as "removed"). They will truely removed in FaceRepo::RebuildIndex(). 

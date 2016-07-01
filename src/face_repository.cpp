@@ -144,7 +144,7 @@ namespace face_rec_srzn {
 
   }
 
-  bool FaceRepo::InitialIndex(const vector<string> & filelist) {
+  bool FaceRepo::InitialIndex(const vector<string> & filelist, const vector<cv::Mat> & feature_list) {
     if (&filelist != &_file_path) {
       string line;
       for ( int i = 0; i < filelist.size(); i++ ) {
@@ -160,6 +160,10 @@ namespace face_rec_srzn {
       _feature_list.push_back(dataset);
       for (int i = 0; i < N; i++) {
         cout<<i<<"/"<<N<<": "<<_file_path[i]<<endl;
+        if (feature_list.size() == filelist.size()) {
+          memcpy(dataset[i], feature_list[i].data, sizeof(FEATURE_TYPE)*FEATURE_DIM);
+          continue;
+        }
         Mat face = imread(_file_path[i]);
         Mat & face_cropped = face;
         //Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
@@ -348,7 +352,7 @@ namespace face_rec_srzn {
       return;
 
     // prepare the search result matrix
-    ::flann::Matrix<FEATURE_TYPE> flann_dists(new FEATURE_TYPE[query.rows*num_return], query.rows, num_return);
+    ::flann::Matrix<float> flann_dists(new float[query.rows*num_return], query.rows, num_return);
     ::flann::Matrix<int> indices(new int[query.rows*num_return], query.rows, num_return);
 
     _index->knnSearch(query, indices, flann_dists, num_return, ::flann::SearchParams(::flann::FLANN_CHECKS_AUTOTUNED)); 
@@ -383,12 +387,24 @@ namespace face_rec_srzn {
       vector<vector<int> >& return_list_pos, 
       vector<vector<float> > & dists) {
     //::flann::Matrix<FEATURE_TYPE> feature((FEATURE_TYPE*)query.data, 1, FEATURE_DIM);
-    ::flann::Matrix<FEATURE_TYPE> feature(new FEATURE_TYPE(query.size()*FEATURE_DIM), query.size(), FEATURE_DIM);
+    ::flann::Matrix<FEATURE_TYPE> feature(new FEATURE_TYPE[query.size()*FEATURE_DIM], query.size(), FEATURE_DIM);
     for (int i = 0; i < query.size(); i++) {
       memcpy(feature[i], query[i].data, sizeof(FEATURE_TYPE)*FEATURE_DIM);
     }
     Query(feature, num_return, return_list, return_list_pos, dists);
     delete feature.ptr();
+  }
+
+  void FaceRepo::Query(const cv::Mat & query, const size_t & num_return, vector<string>& return_list, vector<int>& return_list_pos, vector<float> & dists){
+    vector<Mat> query_list;
+    vector<vector<string> > return_list_list; 
+    vector<vector<int> > return_list_pos_list; 
+    vector<vector<float> > dists_list;
+    query_list.push_back(query);
+    Query(query_list, num_return, return_list_list, return_list_pos_list, dists_list);
+    return_list = return_list_list[0];
+    return_list_pos = return_list_pos_list[0];
+    dists = dists_list[0];
   }
 
   void FaceRepo::Query(const vector<string>  &query_list, 
@@ -474,7 +490,7 @@ namespace face_rec_srzn {
     return AddFace(filelist);
   }
 
-  bool FaceRepo::AddFace(const vector<string> & filelist) {
+  bool FaceRepo::AddFace(const vector<string> & filelist, const vector<cv::Mat> & feature_list) {
     if (0 == GetFaceNum())
       return InitialIndex(filelist);
 
@@ -484,6 +500,10 @@ namespace face_rec_srzn {
     try {
       for (int i = 0; i < N; i++) {
         cout<<i<<"/"<<N<<": "<<filelist[i]<<endl;
+        if (feature_list.size() == filelist.size()) {
+          memcpy(dataset[i], feature_list[i].data, sizeof(FEATURE_TYPE)*FEATURE_DIM);
+          continue;
+        }
         Mat face = imread(filelist[i]);
         Mat & face_cropped = face;
         //Mat face_cropped = detectAlignCrop(face, _cascade, _recognizer);
@@ -493,7 +513,7 @@ namespace face_rec_srzn {
       }
     }
     catch(...) {
-      cerr<<"Read image of extract feature failed in FaceRepo::AddFace()"<<endl;
+      cerr<<"Read image or extract feature failure in FaceRepo::AddFace()"<<endl;
       return false;
     }
     long time2 = clock();
@@ -501,20 +521,20 @@ namespace face_rec_srzn {
     _index->addPoints(dataset);
     _feature_list.push_back(dataset);
 
-    cout<<"BEFORE INSERT "<<_file_path.size()<<endl;
-    for(vector<string>::iterator t = _file_path.begin(); t != _file_path.end(); t++)
-      cout<<*t<<endl;
+    //cout<<"BEFORE INSERT "<<_file_path.size()<<endl;
+    //for(vector<string>::iterator t = _file_path.begin(); t != _file_path.end(); t++)
+      //cout<<*t<<endl;
     _file_path.insert(_file_path.end(), filelist.begin(), filelist.end());
-    cout<<"AFTER INSERT"<<_file_path.size()<<endl;
-    for(vector<string>::iterator t = _file_path.begin(); t != _file_path.end(); t++)
-      cout<<*t<<endl;
+    //cout<<"AFTER INSERT"<<_file_path.size()<<endl;
+    //for(vector<string>::iterator t = _file_path.begin(); t != _file_path.end(); t++)
+      //cout<<*t<<endl;
     return true;
   }
 
   bool FaceRepo::RemoveFace(const string & face_path) {
     vector<string>::iterator t = find(_file_path.begin(), _file_path.end(), fs::canonical(face_path).string());
     if (t == _file_path.end()) {// Not found.
-      cout<<"The specified face to be removed is not found."<<endl;
+      cout<<"The specified face to be removed does not exist."<<endl;
       return false;
     }
     size_t ind = t - _file_path.begin();
@@ -532,12 +552,17 @@ namespace face_rec_srzn {
   }
 
   ::flann::Matrix<FEATURE_TYPE> FaceRepo::GetFeature(const string & face_path){
-    vector<string>::iterator t = find(_file_path.begin(), _file_path.end(), fs::canonical(face_path).string());
-    if (t == _file_path.end()) {// Not found.
-      cout<<"The specified face to be get is not found."<<endl;
+    //vector<string>::iterator t = find(_file_path.begin(), _file_path.end(), fs::canonical(face_path).string());
+    //if (t == _file_path.end()) {// Not found.
+      //cout<<"The specified face to be get is not found."<<endl;
+      //return ::flann::Matrix<FEATURE_TYPE>();
+    //}
+    //size_t ind = t - _file_path.begin();
+    int ind = GetID(face_path);
+    if ( -1 == ind ) {// Not found.
+      cout<<"The specified face to be get does not exist."<<endl;
       return ::flann::Matrix<FEATURE_TYPE>();
     }
-    size_t ind = t - _file_path.begin();
     return GetFeature(ind);
   }
 
@@ -547,13 +572,63 @@ namespace face_rec_srzn {
 
     ::flann::Matrix<FEATURE_TYPE> feature(new FEATURE_TYPE[FEATURE_DIM], 1, FEATURE_DIM);
     int sum = 0;
-      for (int i = 0; i < _feature_list.size(); i++) {
-        if ( sum + _feature_list[i].rows >= point_id ) 
-          memcpy(feature[0], _feature_list[i][point_id-sum], sizeof(FEATURE_TYPE)*FEATURE_DIM);
-        else
-          sum += _feature_list[i].rows;
-        }
-      return feature;
+    for (int i = 0; i < _feature_list.size(); i++) {
+      if ( sum + _feature_list[i].rows >= point_id ) {
+        memcpy(feature[0], _feature_list[i][point_id-sum], sizeof(FEATURE_TYPE)*FEATURE_DIM);
+        return feature;
+      }
+      else
+        sum += _feature_list[i].rows;
+    }
+    return ::flann::Matrix<FEATURE_TYPE>();
+  }
+
+  Mat FaceRepo::GetFeatureCV(const string & face_path){
+    //vector<string>::iterator t = find(_file_path.begin(), _file_path.end(), fs::canonical(face_path).string());
+    //if (t == _file_path.end()) {// Not found.
+      //cout<<"The specified face to be get is not found."<<endl;
+      //return Mat();
+    //}
+    //size_t ind = t - _file_path.begin();
+    int ind = GetID(face_path);
+    if ( -1 == ind ) {// Not found.
+      cout<<"The specified face to be get does not exist."<<endl;
+      return Mat();
+    }
+    return GetFeatureCV(ind);
+  }
+
+  Mat FaceRepo::GetFeatureCV(const size_t point_id){
+    if (point_id < 0 || point_id > _file_path.size() )
+      return Mat(); 
+
+    int sum = 0;
+    for (int i = 0; i < _feature_list.size(); i++) {
+      if ( sum + _feature_list[i].rows >= point_id ) {
+        int dim = FEATURE_DIM;
+        Mat target(1, &dim, CV_FEATURE_DATA_TYPE, _feature_list[i][point_id-sum]);
+        Mat feature;
+        target.copyTo(feature);
+        return feature; 
+      }
+      else
+        sum += _feature_list[i].rows;
+    }
+    return Mat();
+  }
+
+  int FaceRepo::GetID(const string & face_path){
+    vector<string>::iterator t = find(_file_path.begin(), _file_path.end(), fs::canonical(face_path).string());
+    if (t == _file_path.end()) {// Not found.
+      return -1;
+    }
+    return t - _file_path.begin();
+  }
+
+  string FaceRepo::GetPath(const size_t point_id) {
+    if (0 > point_id && _file_path.size() <= point_id)
+      return string("");
+    return _file_path[point_id];
   }
 
   size_t FaceRepo::GetFaceNum() {
