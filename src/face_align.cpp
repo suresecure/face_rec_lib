@@ -94,11 +94,46 @@ dlib::rectangle FaceAlign::getLargestFaceBoundingBox(dlib::cv_image<dlib::bgr_pi
     }
 }
 
+cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
+                          dlib::rectangle bb,
+                          const int imgDim,
+                          const int landmarkIndices[],
+                          const float scale_factor)
+{
+    cv::Mat H, inv_H;
+    return align(rgbImg, H, inv_H, bb, imgDim, landmarkIndices, scale_factor);
+}
+
+cv::Mat  FaceAlign::align(cv::Mat & rgbImg,
+                          cv::Rect rect,
+                          const int imgDim,
+                          const int landmarkIndices[],
+                          const float scale_factor)
+{
+    cv::Mat H, inv_H;
+    dlib::cv_image<dlib::bgr_pixel> cimg(rgbImg);
+    return align(cimg, H, inv_H, openCVRectToDlib(rect), imgDim, landmarkIndices, scale_factor);
+}
+
+cv::Mat  FaceAlign::align(cv::Mat &rgbImg,
+                          cv::Mat & H,
+                          cv::Mat & inv_H,
+                          cv::Rect rect,
+                          const int imgDim,
+                          const int landmarkIndices[],
+                          const float scale_factor)
+{
+    dlib::cv_image<dlib::bgr_pixel> cimg(rgbImg);
+    return align(cimg, H, inv_H, openCVRectToDlib(rect), imgDim, landmarkIndices, scale_factor);
+}
+
 cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg, 
-    dlib::rectangle bb,
-    const int imgDim, 
-    const int landmarkIndices[],
-    const float scale_factor)
+                          cv::Mat & H,
+                          cv::Mat & inv_H,
+                          dlib::rectangle bb,
+                          const int imgDim,
+                          const int landmarkIndices[],
+                          const float scale_factor)
 {
     if (bb.is_empty())
         bb = this->getLargestFaceBoundingBox(rgbImg);
@@ -111,29 +146,29 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
 
     cv::Mat template_face = TEMPLATE;
     if (scale_factor > 0 && scale_factor < 1) {
-      template_face = MINMAX_TEMPLATE; 
-    } 
+        template_face = MINMAX_TEMPLATE;
+    }
 
     for (int i=1; i<=nPoints; i++)
     {
         dlib::point p = landmarks.part(landmarkIndices[i]);
         srcPoints[i-1] = cv::Point2f(p.x(), p.y());
         dstPoints[i-1] = cv::Point2f((float)imgDim * template_face.at<float>(landmarkIndices[i], 0),
-                (float)imgDim * template_face.at<float>(landmarkIndices[i], 1));
+                                     (float)imgDim * template_face.at<float>(landmarkIndices[i], 1));
         //std::cout<<dstPoints[i-1]<<std::endl;
     }
     float resize_factor = 1.0;
     if (scale_factor > 0 && scale_factor < 1) {
-      // The first two landmarks (inner/outer eyes) and the third landmark (bottom lip/nose) form an isosceles triangle approximately.
-      float d1, d2, d3, h1, h2, h;
-      d1 = cv::norm(dstPoints[0] - dstPoints[1]);
-      d2 = cv::norm(dstPoints[2] - dstPoints[0]);
-      d3 = cv::norm(dstPoints[2] - dstPoints[1]);
-      h1 = std::sqrt(d2*d2 - d1*d1/4); // Height computed by landmark 0, 2
-      h2 = std::sqrt(d3*d3 - d1*d1/4); // Height computed by landmark 1, 3
-      h = (h1 + h2)/2; // Use their average
-      resize_factor = scale_factor/ h * imgDim;
-      //std::cout<<" "<<d1<<" "<<d2<<" "<<d3<<" "<<h1<<" "<<h2<<" "<<h<<" "<<resize_factor<<std::endl;
+        // The first two landmarks (inner/outer eyes) and the third landmark (bottom lip/nose) form an isosceles triangle approximately.
+        float d1, d2, d3, h1, h2, h;
+        d1 = cv::norm(dstPoints[0] - dstPoints[1]);
+        d2 = cv::norm(dstPoints[2] - dstPoints[0]);
+        d3 = cv::norm(dstPoints[2] - dstPoints[1]);
+        h1 = std::sqrt(d2*d2 - d1*d1/4); // Height computed by landmark 0, 2
+        h2 = std::sqrt(d3*d3 - d1*d1/4); // Height computed by landmark 1, 3
+        h = (h1 + h2)/2; // Use their average
+        resize_factor = scale_factor/ h * imgDim;
+        //std::cout<<" "<<d1<<" "<<d2<<" "<<d3<<" "<<h1<<" "<<h2<<" "<<h<<" "<<resize_factor<<std::endl;
     }
     for (int i=0; i<nPoints; i++)
     {
@@ -142,10 +177,65 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
         dstPoints[i] += cv::Point2f(0.5*imgDim, 0.5*imgDim);
         //std::cout<<dstPoints[i]<<std::endl;
     }
-    cv::Mat H = cv::getAffineTransform(srcPoints, dstPoints);
+    H = cv::getAffineTransform(srcPoints, dstPoints);
+    inv_H = cv::getAffineTransform(dstPoints, srcPoints);
     cv::Mat warpedImg = dlib::toMat(rgbImg);
     cv::warpAffine(warpedImg, warpedImg, H, cv::Size(imgDim, imgDim));
     return warpedImg;
+}
+
+// Find and crop face by dlib.
+cv::Mat FaceAlign::detectAlignCrop(const cv::Mat &img,
+                                   cv::Rect & rect,
+                                   cv::Mat & H,
+                                   cv::Mat & inv_H,
+                                   const int imgDim,
+                                   const int landmarkIndices[],
+                                   const float scale_factor)
+{
+    // Detection
+    /* Dlib detects a face larger than 80x80 pixels.
+     * We can use pyramid_up to double the size of image,
+     * then dlib can find faces in size of 40x40 pixels in the original image.*/
+    // dlib::pyramid_up(img);
+    dlib::cv_image<dlib::bgr_pixel> cimg(img);
+    std::vector<dlib::rectangle> dets;
+    dets.push_back(getLargestFaceBoundingBox(cimg)); // Use the largest detected face only
+    if (0 == dets.size() || dets[0].is_empty())
+    {
+        rect = cv::Rect();
+        return cv::Mat();
+    }
+    rect = dlibRectangleToOpenCV(dets[0]);
+
+    // --Alignment
+    return align(cimg, H, inv_H, dets[0], imgDim, landmarkIndices, scale_factor);
+}
+
+cv::Mat FaceAlign::detectAlignCrop(const cv::Mat &img,
+                        cv::Rect & rect,
+                        const int imgDim,
+                        const int landmarkIndices[],
+                        const float scale_factor)
+{
+    cv::Mat H, inv_H;
+    return detectAlignCrop(img, rect, H, inv_H, imgDim, landmarkIndices, scale_factor);
+}
+
+void FaceAlign::detectFace(const cv::Mat & img, cv::Rect & rect)
+{
+    dlib::cv_image<dlib::bgr_pixel> cimg(img);
+    dlib::rectangle det = getLargestFaceBoundingBox(cimg);
+    rect = dlibRectangleToOpenCV(det);
+}
+
+void FaceAlign::detectFace(const cv::Mat & img, std::vector<cv::Rect> & rects)
+{
+    dlib::cv_image<dlib::bgr_pixel> cimg(img);
+    std::vector<dlib::rectangle> dets = getAllFaceBoundingBoxes(cimg);
+    rects.clear();
+    for (int i = 0; i < dets.size(); i++)
+        rects.push_back(dlibRectangleToOpenCV(dets[i]));
 }
 
 }

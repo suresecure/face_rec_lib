@@ -605,8 +605,7 @@ namespace face_rec_srzn {
     int sum = 0;
     for (int i = 0; i < _feature_list.size(); i++) {
       if ( sum + _feature_list[i].rows >= point_id ) {
-        int dim = FEATURE_DIM;
-        Mat target(1, &dim, CV_FEATURE_DATA_TYPE, _feature_list[i][point_id-sum]);
+        Mat target(1, FEATURE_DIM, CV_FEATURE_DATA_TYPE, _feature_list[i][point_id-sum]);
         Mat feature;
         target.copyTo(feature);
         return feature; 

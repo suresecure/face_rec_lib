@@ -10,11 +10,11 @@
 #include "opencv2/opencv.hpp"
 #include "face_recognition.hpp"
 #include "boost/filesystem.hpp"
-#include "flann/flann.hpp"
-#include "flann/io/hdf5.h"
+//#include "flann/flann.hpp"
+//#include "flann/io/hdf5.h"
 #include "face_repository.hpp"
-#include "dlib/opencv.h"
-#include "dlib/image_processing/frontal_face_detector.h"
+//#include "dlib/opencv.h"
+//#include "dlib/image_processing/frontal_face_detector.h"
 #include "face_align.h"
 
 namespace fs = ::boost::filesystem;
@@ -43,7 +43,7 @@ std::vector<std::string> split(const std::string &s, char delim) {
   return elems;
 }
 
-void get_all(const fs::path &root, const string &ext, vector<fs::path> &ret) {
+void getAllFiles(const fs::path &root, const string &ext, vector<fs::path> &ret) {
   if (!fs::exists(root) || !fs::is_directory(root))
     return;
 
@@ -616,7 +616,8 @@ void FindValidFace(LightFaceRecognizer &recognizer,
   }
 }
 */
-void findValidFaceDlib(FaceAlign & face_align,
+
+/*void findValidFaceDlib(FaceAlign & face_align,
     const string &image_root,
     const string &save_path,
     const string &ext = string(".jpg")) {
@@ -652,6 +653,47 @@ void findValidFaceDlib(FaceAlign & face_align,
     imwrite(dest_path.string(), face_cropped);
   }
 }
+*/
+
+void findValidFace(FaceAlign & face_align,
+                       const string &image_root,
+                       const string &save_path,
+                       const string &ext=".jpg") {
+
+    // Read image file list
+    vector<fs::path> file_path;
+
+    fs::path root(image_root);
+    getAllFiles(root, ext, file_path);
+    int N = file_path.size();
+    if (0 == N)
+    {
+        cerr<<"No image found in the given path with \""<<ext<<"\" extension."<<endl;
+        exit(-1);
+    }
+
+    // Detect face, then save to the disk.
+    cout<<"Image(s):"<<endl;
+    for (int i = 0; i < N; i++) {
+        cout<<file_path[i]<<endl;
+        Mat face = imread(file_path[i].string());
+        Mat face_cropped, H, inv_H;
+        Rect face_detect;
+        face_cropped = face_align.detectAlignCrop(face, face_detect, H, inv_H, 224, FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3 );
+        if (0 == face_detect.area())
+            continue;
+
+        // Save to the disk.
+        string relative_path = fs::canonical(file_path[i]).string().substr(fs::canonical(root).string().length());
+        //cout<<relative_path<<endl;
+        fs::path dest_path(save_path);
+        dest_path += fs::path(relative_path);
+        fs::create_directories(dest_path.parent_path());
+        cout<<"Save detected face to: "<<dest_path<<endl;
+        imwrite(dest_path.string(), face_cropped);
+    }
+}
+
 /*
 void retrieval_test(LightFaceRecognizer & recognizer,
     CascadeClassifier &cascade, 
@@ -890,7 +932,8 @@ int main(int argc, char **argv) {
   //// argv[1]: Root path of face images; 
   //// argv[2]: Root path to save cropped face images.
   FaceAlign face_align("../../../face_rec_models/shape_predictor_68_face_landmarks.dat");
-  findValidFaceDlib(face_align, argv[1], argv[2]);
+  //findValidFaceDlib(face_align, argv[1], argv[2]);
+  findValidFace(face_align, argv[1], argv[2]);
 
   //// argv[1]: txt file, stored all image file path
   //// argv[2]: txt file, stored the class size of the image

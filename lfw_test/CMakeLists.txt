@@ -3,6 +3,8 @@ project (face_rec_sample_lfw_test)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
 
+add_library(dlib SHARED IMPORTED)   # Dynamic import 
+set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/face_rec_lib/libs/libdlib.so)
 include(../dlib/cmake)  # Static compile dlib
 
 find_package(OpenCV REQUIRED)
@@ -19,9 +21,11 @@ include_directories(${FLANN_INCLUDE_DIRS})
 
 include_directories("../include")
 link_directories("../lib")
-set(FaceRecSrzn_LIBRARIES "face_rec_srzn;caffe")
+set(FaceRecSrzn_LIBRARIES "face_rec_srzn;caffe;dlib")
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-add_executable(lfw_test lfw_test.cpp face_align.h face_align.cpp)
-target_link_libraries(lfw_test dlib ${FaceRecSrzn_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+#add_executable(lfw_test lfw_test.cpp face_align.h face_align.cpp)
+add_executable(lfw_test lfw_test.cpp)
+#target_link_libraries(lfw_test dlib ${FaceRecSrzn_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+target_link_libraries(lfw_test ${FaceRecSrzn_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
 

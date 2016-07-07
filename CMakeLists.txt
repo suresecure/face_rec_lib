@@ -8,14 +8,9 @@ set(FaceRecSrzn_VERSION
   ${FaceRecSrzn_MAJOR_VERSION}.${FaceRecSrzn_MINOR_VERSION}.${FaceRecSrzn_PATCH_VERSION})
 
 # Use dlib
-include(./dlib/cmake)  # Static compile dlib
-#Dynamic import may cause severe performance decay
-#add_library(dlib SHARED IMPORTED)   # Dynamic import 
-#set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/dlib_build/libdlib.so)
-#add_library(dlib SHARED IMPORTED)   # Dynamic import 
-#file(COPY ${CMAKE_SOURCE_DIR}/dlib/dlib/build/libdlib.so.18.18.99 DESTINATION ${CMAKE_BINARY_DIR})
-#file(COPY ${CMAKE_SOURCE_DIR}/dlib/dlib/build/libdlib.so DESTINATION ${CMAKE_BINARY_DIR})
-#set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_BINARY_DIR}/libdlib.so)
+add_library(dlib SHARED IMPORTED)   # Dynamic import 
+set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/face_rec_lib/libs/libdlib.so)
+include(./dlib/cmake)  
 
 # ---[ Using cmake scripts and modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -84,14 +79,15 @@ add_library (face_rec_srzn SHARED
   src/face_recognition.cpp
   src/classifier.cpp
   src/bayesian_model/BayesianModel.cpp
-  #include/face_align.h 
-  #src/face_align.cpp
+  include/face_align.h 
+  src/face_align.cpp
   include/face_repository.hpp
   src/face_repository.cpp
   config.h.in)
 #target_include_directories (face_rec_srzn PUBLIC ./include )
 #target_link_libraries(face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES})
-target_link_libraries(face_rec_srzn ${Caffe_LIBRARIES})
+#target_link_libraries(face_rec_srzn ${Caffe_LIBRARIES})
+target_link_libraries(face_rec_srzn dlib ${Caffe_LIBRARIES} lapack)
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 #add_executable(lfw_val 
@@ -102,13 +98,15 @@ target_link_libraries(face_rec_srzn ${Caffe_LIBRARIES})
 
 add_executable(lfw_test/test 
   lfw_test/test.cpp
-  src/face_align.cpp
-  include/face_align.h) 
+  )
+  #src/face_align.cpp
+  #include/face_align.h) 
 #target_link_libraries(lfw_test/test dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
-target_link_libraries(lfw_test/test dlib face_rec_srzn ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+target_link_libraries(lfw_test/test face_rec_srzn dlib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
 
 set_target_properties(face_rec_srzn PROPERTIES
-  PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
+  #PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
+  PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;include/face_align.h;${CMAKE_CURRENT_BINARY_DIR}/config.h"
   VERSION ${FaceRecSrzn_VERSION})
 
 add_subdirectory(lfw_test)
@@ -124,14 +122,16 @@ install(TARGETS face_rec_srzn
   COMPONENT dev)
 
 install(FILES lfw_test/lfw_test.cpp
-  src/face_align.cpp
-  include/face_align.h
+  #src/face_align.cpp
+  #include/face_align.h
   lfw_test/CMakeLists.txt
   DESTINATION lfw_test)
 install(FILES  cmake/Modules/FindFlann.cmake
   DESTINATION lfw_test/cmake/Modules)
-install(FILES caffe_lib/libcaffe.so
-  caffe_lib/libcaffe.so.1.0.0-rc3
+install(FILES libs/libcaffe.so
+  libs/libcaffe.so.1.0.0-rc3
+  libs/libdlib.so
+  libs/libdlib.so.18.18.99
   DESTINATION lib)
 install(DIRECTORY dlib
   DESTINATION ${CMAKE_INSTALL_PREFIX})
