@@ -9,7 +9,8 @@ set(FaceRecSrzn_VERSION
 
 # Use dlib
 add_library(dlib SHARED IMPORTED)   # Dynamic import 
-set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/face_rec_lib/libs/libdlib.so)
+#set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/face_rec_lib/libs/libdlib.so)
+set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/libs/libdlib.so)
 include(./dlib/cmake)  
 
 # ---[ Using cmake scripts and modules
@@ -96,6 +97,9 @@ target_link_libraries(face_rec_srzn dlib ${Caffe_LIBRARIES} lapack)
 #target_include_directories (lfw_val PRIVATE ./include )
 #target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
 
+add_executable(face_ver face_ver_demo/face_ver_demo.cpp )
+target_link_libraries(face_ver face_rec_srzn dlib caffe ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} )
+
 add_executable(lfw_test/test 
   lfw_test/test.cpp
   )
@@ -109,7 +113,7 @@ set_target_properties(face_rec_srzn PROPERTIES
   PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;include/face_align.h;${CMAKE_CURRENT_BINARY_DIR}/config.h"
   VERSION ${FaceRecSrzn_VERSION})
 
-add_subdirectory(lfw_test)
+#add_subdirectory(lfw_test)
 
 #FRAMEWORK ON
 #SOVERSION 0

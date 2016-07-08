@@ -524,10 +524,13 @@ namespace face_rec_srzn {
     //cout<<"BEFORE INSERT "<<_file_path.size()<<endl;
     //for(vector<string>::iterator t = _file_path.begin(); t != _file_path.end(); t++)
       //cout<<*t<<endl;
-    _file_path.insert(_file_path.end(), filelist.begin(), filelist.end());
+    //_file_path.insert(_file_path.end(), filelist.begin(), filelist.end());
     //cout<<"AFTER INSERT"<<_file_path.size()<<endl;
     //for(vector<string>::iterator t = _file_path.begin(); t != _file_path.end(); t++)
       //cout<<*t<<endl;
+    for (int i = 0; i < filelist.size(); i++) {
+      _file_path.push_back(fs::canonical(filelist[i]).string());
+    }
     return true;
   }
 
