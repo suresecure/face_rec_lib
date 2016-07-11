@@ -8,10 +8,11 @@ set(FaceRecSrzn_VERSION
   ${FaceRecSrzn_MAJOR_VERSION}.${FaceRecSrzn_MINOR_VERSION}.${FaceRecSrzn_PATCH_VERSION})
 
 # Use dlib
-add_library(dlib SHARED IMPORTED)   # Dynamic import 
-#set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/face_rec_lib/libs/libdlib.so)
-set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/libs/libdlib.so)
-include(./dlib/cmake)  
+include(../dlib/cmake)
+#add_library(dlib SHARED IMPORTED)   # Dynamic import 
+##set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/face_rec_lib/libs/libdlib.so)
+#set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/libs/libdlib.so)
+#include(./dlib/cmake)  
 
 # ---[ Using cmake scripts and modules
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
@@ -75,7 +76,7 @@ if(OPENMP_FOUND)
 endif()
 
 
-add_library (face_rec_srzn SHARED 
+add_library (face_rec_srzn STATIC 
   include/face_recognition.hpp 
   src/face_recognition.cpp
   src/classifier.cpp
@@ -98,15 +99,15 @@ target_link_libraries(face_rec_srzn dlib ${Caffe_LIBRARIES} lapack)
 #target_link_libraries(lfw_val face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES})
 
 add_executable(face_ver face_ver_demo/face_ver_demo.cpp )
-target_link_libraries(face_ver face_rec_srzn dlib caffe ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} )
+target_link_libraries(face_ver face_rec_srzn dlib ${Caffe_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} )
 
-add_executable(lfw_test/test 
-  lfw_test/test.cpp
-  )
-  #src/face_align.cpp
-  #include/face_align.h) 
-#target_link_libraries(lfw_test/test dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
-target_link_libraries(lfw_test/test face_rec_srzn dlib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+#add_executable(lfw_test/test 
+  #lfw_test/test.cpp
+  #)
+  ##src/face_align.cpp
+  ##include/face_align.h) 
+##target_link_libraries(lfw_test/test dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+#target_link_libraries(lfw_test/test face_rec_srzn dlib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
 
 set_target_properties(face_rec_srzn PROPERTIES
   #PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"
@@ -117,25 +118,25 @@ set_target_properties(face_rec_srzn PROPERTIES
 
 #FRAMEWORK ON
 #SOVERSION 0
-install(TARGETS face_rec_srzn 
-  # IMPORTANT: Add the foo library to the "export-set"
-  #EXPORT FaceRecSrznTargets
-  RUNTIME DESTINATION "bin" COMPONENT bin
-  LIBRARY DESTINATION "lib" COMPONENT shlib
-  PUBLIC_HEADER DESTINATION "include"
-  COMPONENT dev)
+#install(TARGETS face_rec_srzn 
+  ## IMPORTANT: Add the foo library to the "export-set"
+  ##EXPORT FaceRecSrznTargets
+  #RUNTIME DESTINATION "bin" COMPONENT bin
+  #LIBRARY DESTINATION "lib" COMPONENT shlib
+  #PUBLIC_HEADER DESTINATION "include"
+  #COMPONENT dev)
 
-install(FILES lfw_test/lfw_test.cpp
-  #src/face_align.cpp
-  #include/face_align.h
-  lfw_test/CMakeLists.txt
-  DESTINATION lfw_test)
-install(FILES  cmake/Modules/FindFlann.cmake
-  DESTINATION lfw_test/cmake/Modules)
-install(FILES libs/libcaffe.so
-  libs/libcaffe.so.1.0.0-rc3
-  libs/libdlib.so
-  libs/libdlib.so.18.18.99
-  DESTINATION lib)
-install(DIRECTORY dlib
-  DESTINATION ${CMAKE_INSTALL_PREFIX})
+#install(FILES lfw_test/lfw_test.cpp
+  ##src/face_align.cpp
+  ##include/face_align.h
+  #lfw_test/CMakeLists.txt
+  #DESTINATION lfw_test)
+#install(FILES  cmake/Modules/FindFlann.cmake
+  #DESTINATION lfw_test/cmake/Modules)
+#install(FILES libs/libcaffe.so
+  #libs/libcaffe.so.1.0.0-rc3
+  #libs/libdlib.so
+  #libs/libdlib.so.18.18.99
+  #DESTINATION lib)
+#install(DIRECTORY dlib
+  #DESTINATION ${CMAKE_INSTALL_PREFIX})
