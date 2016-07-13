@@ -97,6 +97,7 @@ bool faceVerfication(LightFaceRecognizer &recognizer, FaceAlign &face_align,
   int num_select_sample = 5;
   int num_min_accept_frame = 5;
   double dist_threshold = 0.6;
+  int size_face_least = 160;
 
   cout << "Verification: " << path.string() << endl;
 
@@ -137,14 +138,14 @@ bool faceVerfication(LightFaceRecognizer &recognizer, FaceAlign &face_align,
     // Detect face and show.
     Rect face_rect;
     face_align.detectFace(frame, face_rect);
-    if (face_rect.width <= 0 || face_rect.height <= 0) {
+    if (face_rect.width < size_face_least || face_rect.height < size_face_least) {
       imshow(winName, frame);
       char key = (char)waitKey(30);
       continue;
     }
 
     // Extract face feature
-    Mat face = face_align.align(frame, face_rect, 224,
+    Mat face = face_align.align(frame, face_rect, 192,
                                 FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3);
     Mat f;
     recognizer.ExtractFaceFeature(face, f);
@@ -201,6 +202,8 @@ bool faceVerfication(LightFaceRecognizer &recognizer, FaceAlign &face_align,
 
 bool faceRegister(LightFaceRecognizer &recognizer, FaceAlign &face_align,
                   fs::path &path, VideoCapture &cap) {
+  int size_face_least = 160;
+
   cout << "Register: " << path.string() << endl;
   string winName = "Face Register";
   namedWindow(winName);
@@ -212,7 +215,7 @@ bool faceRegister(LightFaceRecognizer &recognizer, FaceAlign &face_align,
     Rect face_rect;
     face_align.detectFace(frame, face_rect);
     bool face_detected = true;
-    if (face_rect.width <= 0 || face_rect.height <= 0)
+    if (face_rect.width < size_face_least || face_rect.height < size_face_least )
       face_detected = false;
     if (face_detected)
       rectangle(frame, face_rect, Scalar(255, 0, 255));
@@ -224,7 +227,7 @@ bool faceRegister(LightFaceRecognizer &recognizer, FaceAlign &face_align,
       return false;
     case ' ':
       if (face_detected) {
-        Mat face = face_align.align(origin, face_rect, 224,
+        Mat face = face_align.align(origin, face_rect, 192,
                                     FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3);
         string filename = getNewFileName(".jpg");
         fs::path save_path = path / filename;

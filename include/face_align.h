@@ -11,6 +11,8 @@
 #include <dlib/image_processing/frontal_face_detector.h>
 #include <dlib/image_processing.h>
 
+#define DEFAULT_RESIZE_DIM 192
+
 namespace face_rec_srzn {
 
 static cv::Rect dlibRectangleToOpenCV(dlib::rectangle r)
@@ -41,40 +43,40 @@ public:
     // Do affine transform to align face.
     cv::Mat align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
                   dlib::rectangle bb=dlib::rectangle(),
-                  const int imgDim=224,
+                  const int imgDim=DEFAULT_RESIZE_DIM,
                   const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
                   const float scale_factor=0.0);
     cv::Mat  align(cv::Mat & rgbImg,
                    cv::Rect rect=cv::Rect(),
-                   const int imgDim=224,
+                   const int imgDim=DEFAULT_RESIZE_DIM,
                    const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
                    const float scale_factor=0.0);
     cv::Mat align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
                   cv::Mat & H,  // The affine matrix to the template
                   cv::Mat & inv_H, // Inverse affine matrix
                   dlib::rectangle bb=dlib::rectangle(),
-                  const int imgDim=224,
+                  const int imgDim=DEFAULT_RESIZE_DIM,
                   const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
                   const float scale_factor=0.0);
     cv::Mat align(cv::Mat &rgbImg,
                   cv::Mat & H,  // The affine matrix to the template
                   cv::Mat & inv_H, // Inverse affine matrix
                   cv::Rect rect=cv::Rect(),
-                  const int imgDim=224,
+                  const int imgDim=DEFAULT_RESIZE_DIM,
                   const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
                   const float scale_factor=0.0);
 
     // Detect the largest face, align and crop it.
     cv::Mat detectAlignCrop(const cv::Mat &img,
                             cv::Rect & rect,
-                            const int imgDim=224,
+                            const int imgDim=DEFAULT_RESIZE_DIM,
                             const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
                             const float scale_factor=0.0);
     cv::Mat detectAlignCrop(const cv::Mat &img,
                             cv::Rect & rect,
                             cv::Mat & H,  // The affine matrix to the template
                             cv::Mat & inv_H, // Inverse affine matrix
-                            const int imgDim=224,
+                            const int imgDim=DEFAULT_RESIZE_DIM,
                             const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
                             const float scale_factor=0.0);
 
