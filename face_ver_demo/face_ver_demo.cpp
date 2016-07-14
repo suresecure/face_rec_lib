@@ -13,6 +13,8 @@
 #include "dlib/image_processing/frontal_face_detector.h"
 #include "face_align.h"
 
+#define DIST_THRESHOLD 0.6
+
 namespace fs = ::boost::filesystem;
 
 using namespace cv;
@@ -90,13 +92,93 @@ Mat affine2square(const Mat &H) {
   return M;
 }
 
+
+bool faceVerfication(LightFaceRecognizer &recognizer, FaceAlign &face_align,
+                     fs::path &path, Mat & frame) {
+  // Parameter settings.
+  int num_select_sample = 5;
+  double dist_threshold = DIST_THRESHOLD; 
+
+  cout << "Verification: " << path.string() << endl;
+
+  string winName = "Face Verification";
+  namedWindow(winName);
+
+  // Get register faces.
+  vector<fs::path> all_image_path;
+  getAllFiles(path, ".jpg", all_image_path);
+  if (0 >= all_image_path.size()) {
+    cerr << "The person with name " << path.filename() << " does not exist!"
+      << endl;
+    return false;
+  }
+
+  // Select face samples and compute their feature.
+  vector<Mat> features;
+  Mat sample_to_show;
+  srand(time(0));
+  for (int i = 0; i < num_select_sample && i < all_image_path.size(); i++) {
+    int j = rand() % all_image_path.size();
+    Mat face = imread(all_image_path[j].string());
+    Mat feature;
+    recognizer.ExtractFaceFeature(face, feature);
+    features.push_back(feature);
+    if (0 == i) {
+      resize(face, sample_to_show, Size(100, 100));
+    }
+  }
+
+  // Detect face and show.
+  Rect face_rect;
+  face_align.detectFace(frame, face_rect);
+  if (face_rect.width <= 0 || face_rect.height <= 0) {
+    imshow(winName, frame);
+    cout<<" No valid face detected!"<<endl;
+    waitKey(5000);
+    return false;
+  }
+
+  // Extract face feature
+  Mat face = face_align.align(frame, face_rect, 192,
+      FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3);
+  Mat f;
+  recognizer.ExtractFaceFeature(face, f);
+
+  // Compare with register face features.
+  vector<double> dists;
+  for (int j = 0; j < features.size(); j++) {
+    dists.push_back(norm(f, features[j]));
+  }
+  vector<double>::iterator min_iter = min_element(dists.begin(), dists.end());
+  cout << ": " << *min_iter << endl;
+
+  // Show image.
+  Mat im_show;
+  frame.copyTo(im_show); 
+  rectangle(im_show, face_rect, Scalar(255, 0, 255));
+  resize(im_show, im_show, Size(480, 480));
+  Mat roi = Mat(im_show, Rect(0, im_show.rows - 100, 100, 100));
+  sample_to_show.copyTo(roi);
+  char buf[20] = {'\0'};
+  sprintf(buf, "%4f", dist2sim(*min_iter));
+  putText(im_show, buf, Point(20, 50), CV_FONT_HERSHEY_COMPLEX, 1,
+      Scalar(255, 0, 0));
+  string result = *min_iter < dist_threshold ? "SUCCESS" : "FAIL"; 
+  putText(im_show, result, Point(im_show.cols / 2, 100), CV_FONT_HERSHEY_COMPLEX,
+      1, Scalar(255, 0, 0));
+  imshow(winName, im_show);
+  waitKey(5000);
+
+  return *min_iter < dist_threshold;
+}
+
 bool faceVerfication(LightFaceRecognizer &recognizer, FaceAlign &face_align,
                      fs::path &path, VideoCapture &cap) {
   // Parameter settings.
   int num_max_check_frame = 150;
   int num_select_sample = 5;
   int num_min_accept_frame = 5;
-  double dist_threshold = 0.6;
+  double dist_threshold = DIST_THRESHOLD; 
   int size_face_least = 160;
 
   cout << "Verification: " << path.string() << endl;
@@ -201,6 +283,34 @@ bool faceVerfication(LightFaceRecognizer &recognizer, FaceAlign &face_align,
 }
 
 bool faceRegister(LightFaceRecognizer &recognizer, FaceAlign &face_align,
+    fs::path &path, Mat & frame) {
+  cout << "Register: " << path.string() << endl;
+  string winName = "Face Register";
+  namedWindow(winName);
+
+  Rect face_rect;
+  face_align.detectFace(frame, face_rect);
+  if (face_rect.width <=0 || face_rect.height <= 0) {
+    cout<<"No valid face detected in the given image."<<endl;
+    return false;
+  }
+
+  Mat image;
+  frame.copyTo(image);
+  rectangle(image, face_rect, Scalar(255, 0, 255));
+  imshow(winName, image);
+  Mat face = face_align.align(frame, face_rect, 192,
+      FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3);
+  string filename = getNewFileName(".jpg");
+  fs::path save_path = path / filename;
+  cout << "Save face image to: " << save_path.string() << endl;
+  fs::create_directories(path);
+  imwrite(save_path.string(), face);
+  waitKey(5000);
+  return true;
+}
+
+bool faceRegister(LightFaceRecognizer &recognizer, FaceAlign &face_align,
                   fs::path &path, VideoCapture &cap) {
   int size_face_least = 160;
 
@@ -250,22 +360,18 @@ int main(int argc, char **argv) {
   string image_root("../../images");
   int camera_index = 0;
 
-  string action, name;
-  if (3 == argc) {
+  string action, name, image_path;
+  Mat image;
+  if (3 <= argc) {
     action = argv[1];
     name = argv[2];
   }
+  if ( 4 == argc )
+    image_path = argv[3];
 
   if (action.empty() || name.empty() || "ver" != action && "reg" != action) {
-    cout << "Usage: ./face_ver [reg|ver] [person_name]" << endl;
+    cout << "Usage: ./face_ver [reg|ver] [person_name] [image_path]" << endl;
     cout << "Press Space to start process, ESC to close window" << endl;
-    return -1;
-  }
-
-  // Get a handle to the camera
-  VideoCapture cap(camera_index);
-  if (!cap.isOpened()) {
-    cerr << "Camera " << camera_index << " cannot be opened." << endl;
     return -1;
   }
 
@@ -273,12 +379,35 @@ int main(int argc, char **argv) {
   fs::path folder(image_root);
   folder /= name;
 
-  // Action
-  if ("ver" == action) {
-    faceVerfication(recognizer, face_align, folder, cap);
-  } else {
-    faceRegister(recognizer, face_align, folder, cap);
+  // Get image
+  if ( !image_path.empty() ){
+    image = imread(image_path);
   }
 
+  // Get a handle to the camera
+  VideoCapture * cap = NULL;
+  if ( image.empty() ) {
+    cap = new VideoCapture(camera_index);
+    if (!cap->isOpened()) {
+      cerr << "Camera " << camera_index << " cannot be opened." << endl;
+      delete cap;
+      return -1;
+    }
+  }
+
+  // Action
+  if ("ver" == action) {
+    if (NULL != cap)
+      faceVerfication(recognizer, face_align, folder, *cap);
+    else
+      faceVerfication(recognizer, face_align, folder, image);
+  } else {
+    if (NULL != cap)
+      faceRegister(recognizer, face_align, folder, *cap);
+    else
+      faceRegister(recognizer, face_align, folder, image);
+  }
+
+  delete cap;
   return 0;
 }
