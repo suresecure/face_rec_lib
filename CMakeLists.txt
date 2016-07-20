@@ -101,13 +101,13 @@ target_link_libraries(face_rec_srzn dlib ${Caffe_LIBRARIES} lapack)
 add_executable(face_ver face_ver_demo/face_ver_demo.cpp )
 target_link_libraries(face_ver face_rec_srzn dlib ${Caffe_LIBRARIES} ${OpenCV_LIBRARIES} ${Boost_LIBRARIES} )
 
-#add_executable(lfw_test/test 
-  #lfw_test/test.cpp
-  #)
-  ##src/face_align.cpp
-  ##include/face_align.h) 
-##target_link_libraries(lfw_test/test dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
-#target_link_libraries(lfw_test/test face_rec_srzn dlib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+add_executable(lfw_test/test
+  lfw_test/test.cpp
+  )
+  #src/face_align.cpp
+  #include/face_align.h)
+#target_link_libraries(lfw_test/test dlib face_rec_srzn face_alignment_lib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
+target_link_libraries(lfw_test/test face_rec_srzn dlib ${Caffe_LIBRARIES} ${OpenCV_LIBS} ${Boost_LIBRARIES} ${FLANN_LIBRARY} ${HDF5_LIBRARIES})
 
 set_target_properties(face_rec_srzn PROPERTIES
   #PUBLIC_HEADER "include/face_recognition.hpp;include/face_repository.hpp;${CMAKE_CURRENT_BINARY_DIR}/config.h"

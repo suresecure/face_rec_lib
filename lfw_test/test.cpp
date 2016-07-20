@@ -25,6 +25,12 @@ using namespace face_rec_srzn;
 
 //#define  FEATURE_DIM (160) 
 //typedef float FEATURE_TYPE;
+#define FACE_ALIGN_SIZE 192
+#define FACE_ALIGN_LANDMARK FaceAlign::INNER_EYES_AND_TOP_LIP
+//#define FACE_ALIGN_SCALE_FACTOR 0.2734
+#define FACE_ALIGN_SCALE_FACTOR 0.26 // 25:100 as in CASIA dataset paper. Use 96*96 as input in small CNN, that's 25/96.
+//#define FACE_ALIGN_LANDMARK FaceAlign::INNER_EYES_AND_BOTTOM_LIP
+//#define FACE_ALIGN_SCALE_FACTOR 0.3385
 string cascadeName = "../../../face_rec_models/haarcascade_frontalface_alt.xml";
 
 // Face recognition parameters.
@@ -231,9 +237,11 @@ Mat detectAlignCropDlib(FaceAlign & face_align, const Mat &img) {
   long time4 = clock();
   //Mat ret = face_align.align(cimg, dets[0]);
   // The last argument control the size of face after align.
-  // It is the proportion of the distance, which from the center point of inner eyes to the bottom lip, in the whole image.
-  // 0.3 is best tuned to the SMALL CNN model's mean image.
-  Mat ret = face_align.align(cimg, dets[0], 224, FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3);
+  // It is the proportion of the distance, which from the center point of inner eyes to the bottom/top lip, in the whole image.
+  // It is best tuned to the SMALL CNN model's mean image.
+  //Mat ret = face_align.align(cimg, dets[0], 224, FaceAlign::INNER_EYES_AND_BOTTOM_LIP, 0.3);
+  Mat ret = face_align.align(cimg, dets[0], FACE_ALIGN_SIZE,
+                              FACE_ALIGN_LANDMARK, FACE_ALIGN_SCALE_FACTOR);
   long time5 = clock();
   //cout<<time2 - time1<<endl;
   //cout<<time3 - time2<<endl;
@@ -2192,13 +2200,13 @@ int main(int argc, char **argv) {
   //retrieval_test(faceRepo, argv[1], image_face_count, saved_image_path);
 
   if (2 == argc) {
-    //load_and_recognition_test(recognizer, face_align, string(argv[1]));
-    batch_do_recognition_test(recognizer, face_align, string(argv[1]));
+    // Load FaceRepo from argv[1], then do face recognition test. Each image as a query.
+    load_and_recognition_test(recognizer, face_align, string(argv[1]));
+    // Batch do load_and_recognition_test with different parameter setting.
+    //batch_do_recognition_test(recognizer, face_align, string(argv[1]));
   }
   if (4 == argc) {
-    //cout<<argv[1]<<endl;
-    //cout<<argv[2]<<endl;
-    //cout<<argv[3]<<endl;
+    // Detect face in argv[1], save aligned face to argv[2], save FaceRepo to argv[3]
     detect_and_recognition_test(recognizer, face_align, string(argv[1]), string(argv[2]), string(argv[3]));
     batch_do_recognition_test(recognizer, face_align, string(argv[3]));
   }

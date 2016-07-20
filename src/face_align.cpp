@@ -1,11 +1,18 @@
 #include <dlib/assert.h>
 #include <opencv2/imgproc/imgproc.hpp>
+#include <math.h>
 
 #include "face_align.h"
+
+//#include "opencv2/opencv.hpp"
+
+//using namespace cv;
+//using namespace std;
 
 namespace face_rec_srzn {
 const int FaceAlign::INNER_EYES_AND_BOTTOM_LIP[] =  {3, 39, 42, 57};
 const int FaceAlign::OUTER_EYES_AND_NOSE[] = {3, 36, 45, 33};
+const int FaceAlign::INNER_EYES_AND_TOP_LIP[] = {3, 39, 42, 51};
 float FaceAlign::TEMPLATE_DATA[][2] =
 {
     {0.0792396913815, 0.339223741112}, {0.0829219487236, 0.456955367943},
@@ -127,6 +134,175 @@ cv::Mat  FaceAlign::align(cv::Mat &rgbImg,
     return align(cimg, H, inv_H, openCVRectToDlib(rect), imgDim, landmarkIndices, scale_factor);
 }
 
+cv::Mat  FaceAlign::align(cv::Mat &rgbImg,
+                          cv::Mat & H,
+                          FaceAlignTransVar & V,
+                          cv::Rect rect,
+                          const int imgDim,
+                          const int landmarkIndices[],
+                          const float scale_factor)
+{
+    dlib::cv_image<dlib::bgr_pixel> cimg(rgbImg);
+    return align(cimg, H, V, openCVRectToDlib(rect), imgDim, landmarkIndices, scale_factor);
+}
+
+cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg, 
+                          cv::Mat & H,
+                          FaceAlignTransVar & V,
+                          dlib::rectangle bb,
+                          const int imgDim,
+                          const int landmarkIndices[],
+                          const float scale_factor)
+{
+    if (bb.is_empty())
+        bb = this->getLargestFaceBoundingBox(rgbImg);
+
+    dlib::full_object_detection landmarks = this->predictor(rgbImg, bb);
+
+    int nPoints = landmarkIndices[0];
+    cv::Point2f srcPoints[nPoints];
+    cv::Point2f dstPoints[nPoints];
+    cv::Point2f tpPoints[nPoints];
+
+    cv::Mat template_face = TEMPLATE;
+    if (scale_factor > 0 && scale_factor < 1) {
+        template_face = MINMAX_TEMPLATE;
+    }
+
+    for (int i=1; i<=nPoints; i++)
+    {
+        dlib::point p = landmarks.part(landmarkIndices[i]);
+        srcPoints[i-1] = cv::Point2f(p.x(), p.y());
+        dstPoints[i-1] = cv::Point2f((float)imgDim * template_face.at<float>(landmarkIndices[i], 0),
+                                     (float)imgDim * template_face.at<float>(landmarkIndices[i], 1));
+        tpPoints[i-1] = cv::Point2f(template_face.at<float>(landmarkIndices[i], 0),
+                                     template_face.at<float>(landmarkIndices[i], 1));
+        //std::cout<<dstPoints[i-1]<<std::endl;
+    }
+    // Point in the middle of the eyes.
+    cv::Point2f mid_eye_tp( (tpPoints[0].x+tpPoints[1].x)/2, (tpPoints[0].y+tpPoints[1].y)/2 );
+    cv::Point2f mid_eye_src( (srcPoints[0].x+srcPoints[1].x)/2, (srcPoints[0].y+srcPoints[1].y)/2 );
+
+    float resize_factor = 1.0;
+    if (scale_factor > 0 && scale_factor < 1) {
+       /*
+        // The first two landmarks (inner/outer eyes) and the third landmark (bottom/top lip/nose) form an isosceles triangle approximately.
+        float d1, d2, d3, h1, h2, h;
+        d1 = cv::norm(dstPoints[0] - dstPoints[1]);
+        d2 = cv::norm(dstPoints[2] - dstPoints[0]);
+        d3 = cv::norm(dstPoints[2] - dstPoints[1]);
+        h1 = std::sqrt(d2*d2 - d1*d1/4); // Height computed by landmark 0, 2
+        h2 = std::sqrt(d3*d3 - d1*d1/4); // Height computed by landmark 1, 3
+        h = (h1 + h2)/2; // Use their average
+        resize_factor = scale_factor/ h * imgDim;
+        //std::cout<<" "<<d1<<" "<<d2<<" "<<d3<<" "<<h1<<" "<<h2<<" "<<h<<" "<<resize_factor<<std::endl;
+        */
+        float h = cv::norm(tpPoints[2] - mid_eye_tp);
+        resize_factor = scale_factor/ h;
+    }
+    for (int i=0; i<nPoints; i++)
+    {
+        dstPoints[i] -= cv::Point2f(0.5*imgDim, 0.5*imgDim);
+        dstPoints[i] *= resize_factor;
+        dstPoints[i] += cv::Point2f(0.5*imgDim, 0.5*imgDim);
+        //std::cout<<dstPoints[i]<<std::endl;
+    }
+    //Get affine matrix.
+    H = cv::getAffineTransform(srcPoints, dstPoints);
+
+    //-------------------------------------------------------
+    // Transform variables.
+    // Use line connecting point in the middle of eyes and the top/bottom nose/lip point as the vertical axis.
+    //float delta_y = template_face.at<float>(51, 1) - template_face.at<float>(27, 1);
+    //float delta_x = template_face.at<float>(51, 0) - template_face.at<float>(27, 0);
+    float delta_y = tpPoints[2].y - mid_eye_tp.y;
+    float delta_x = tpPoints[2].x - mid_eye_tp.x;
+    float angle_temp = atan2(delta_y, delta_x);
+    //std::cout<<"arctan(y/x) "<<atan2(delta_y, delta_x)<<std::endl;
+    //delta_y = landmarks.part(51).y() - landmarks.part(27).y();
+    //delta_x = landmarks.part(51).x() - landmarks.part(27).x();
+    delta_y = srcPoints[2].y - mid_eye_src.y;
+    delta_x = srcPoints[2].x - mid_eye_src.x;
+    float angle_img = atan2(delta_y, delta_x);
+    float angle_rotation = (angle_img - angle_temp) * 180 / dlib::pi;
+    //std::cout<<"arctan(y/x) "<<-1*atan2(delta_y, delta_x)<<std::endl;
+
+    cv::Mat rotImg = dlib::toMat(rgbImg);
+    cv::Mat H_rot = cv::getRotationMatrix2D(cv::Point(rotImg.cols/2, rotImg.rows/2), angle_rotation, 1);
+
+    float value_tp[4] = {1e10, 1e10, -1e10, -1e10}; // min{x}, min{y}, max{x}, max{y} of the template
+    float value_rot[4] = {1e10, 1e10, -1e10, -1e10}; // min{x}, min{y}, max{x}, max{y} of the rotated image
+    std::vector<cv::Point> rotPoints;
+    for ( int i = 0; i < template_face.rows; i++ ) {
+      dlib::point p = landmarks.part(i);
+      cv::Point result;
+      result.x = H_rot.at<double>(0, 0)*p.x() +
+                 H_rot.at<double>(0, 1)*p.y() +
+                 H_rot.at<double>(0, 2);
+      result.y = H_rot.at<double>(1, 0)*p.x() +
+                 H_rot.at<double>(1, 1)*p.y() +
+                 H_rot.at<double>(1, 2);
+      rotPoints.push_back(result);
+
+      cv::Point pt(template_face.at<float>(i, 0), template_face.at<float>(i, 1));
+      value_tp[0] = value_tp[0] > pt.x ? pt.x : value_tp[0];
+      value_tp[1] = value_tp[1] > pt.y ? pt.y : value_tp[1];
+      value_tp[2] = value_tp[2] < pt.x ? pt.x : value_tp[2];
+      value_tp[3] = value_tp[3] < pt.y ? pt.y : value_tp[3];
+
+      value_rot[0] = value_rot[0] > result.x ? result.x : value_rot[0];
+      value_rot[1] = value_rot[1] > result.y ? result.y : value_rot[1];
+      value_rot[2] = value_rot[2] < result.x ? result.x : value_rot[2];
+      value_rot[3] = value_rot[3] < result.y ? result.y : value_rot[3];
+    }
+    // Point in the middle of the eyes, after rotation.
+    cv::Point2f mid_eye_rot( (rotPoints[landmarkIndices[1]].x+rotPoints[landmarkIndices[2]].x)/2,
+        (rotPoints[landmarkIndices[1]].y+rotPoints[landmarkIndices[2]].y)/2 );
+
+    //// Show rotated image for debug.
+    //cv::line(rotImg, mid_eye_rot, rotPoints[landmarkIndices[3]], CV_RGB(255, 0, 0));
+    //cv::line(rotImg, cv::Point2f(value_rot[0],0), cv::Point2f(value_rot[0],300), CV_RGB(255, 0, 0));
+    //cv::line(rotImg, cv::Point2f(value_rot[2],0), cv::Point2f(value_rot[2],300), CV_RGB(255, 0, 0));
+    //cv::imshow("Roataed image", rotImg);
+    //cv::waitKey(-1);
+
+    // Aspect ratio of the temlate and the rotated image
+    float ar_tp = (value_tp[2] - value_tp[0]) / (value_tp[3] - value_tp[1]);
+    float ar_rot = (value_rot[2] - value_rot[0]) / (value_rot[3] - value_rot[1]);
+    float ar_change = (ar_rot - ar_tp) / ar_tp;
+
+    // Pitching rate. We use the change of mid_eye_to_top_lip/whole_face_height as the approximate estimate of the face pitching rate.
+    float p_tp = (tpPoints[2].y - mid_eye_tp.y) / (value_tp[3] - value_tp[1]);
+    float p_rot = (rotPoints[landmarkIndices[3]].y - mid_eye_rot.y) / (value_rot[3] - value_rot[1]);
+    float pitching = (p_rot - p_tp) / p_tp;
+
+    // Left and right face ratio of the template and the rotated image
+    //// Use landmark 51 and 27's average x as the center vertial axis
+    //float center_x_tp = (landmarks.part(51).x() + landmarks.part(27).x()) / 2;
+    //float center_x_rot = (rotPoints[51].x + rotPoints[27].x) / 2;
+    // Use line connecting mid_eye and bottom/top lip/nose as the vertical axis.
+    float center_x_tp = (mid_eye_tp.x + tpPoints[2].x) / 2;
+    float center_x_rot = (mid_eye_rot.x + rotPoints[landmarkIndices[3]].x) / 2;
+    float lr_tp = (value_tp[2] - center_x_tp) / (center_x_tp - value_tp[0]);
+    float lr_rot = (value_rot[2] - center_x_rot) / (center_x_rot - value_rot[0]);
+    float lr_change = (lr_rot - lr_tp) / lr_tp;
+
+//    std::cout<<"Rotation angle is : "<<angle_rotation<<std::endl;
+//    std::cout<<"lr_change: "<<lr_tp<<" "<<lr_rot<<" "<<lr_change<<std::endl;
+//    std::cout<<"ar_change: "<<ar_tp<<" "<<ar_rot<<" "<<ar_change<<std::endl;
+//    std::cout<<"Pitching: "<<p_tp<<" "<<p_rot<<" "<<pitching<<std::endl;
+
+    V.ar_change = ar_change;
+    V.lr_change = lr_change;
+    V.pitching = pitching;
+    V.rotation = angle_rotation;
+    //-------------------------------------------------------
+
+    cv::Mat warpedImg = dlib::toMat(rgbImg);
+    cv::warpAffine(warpedImg, warpedImg, H, cv::Size(imgDim, imgDim));
+    return warpedImg;
+}
+
 cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg, 
                           cv::Mat & H,
                           cv::Mat & inv_H,
@@ -143,6 +319,7 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
     int nPoints = landmarkIndices[0];
     cv::Point2f srcPoints[nPoints];
     cv::Point2f dstPoints[nPoints];
+    cv::Point2f tpPoints[nPoints];
 
     cv::Mat template_face = TEMPLATE;
     if (scale_factor > 0 && scale_factor < 1) {
@@ -155,11 +332,18 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
         srcPoints[i-1] = cv::Point2f(p.x(), p.y());
         dstPoints[i-1] = cv::Point2f((float)imgDim * template_face.at<float>(landmarkIndices[i], 0),
                                      (float)imgDim * template_face.at<float>(landmarkIndices[i], 1));
+        tpPoints[i-1] = cv::Point2f(template_face.at<float>(landmarkIndices[i], 0),
+                                     template_face.at<float>(landmarkIndices[i], 1));
         //std::cout<<dstPoints[i-1]<<std::endl;
     }
+    // Point in the middle of the eyes.
+    cv::Point2f mid_eye_tp( (tpPoints[0].x+tpPoints[1].x)/2, (tpPoints[0].y+tpPoints[1].y)/2 );
+    cv::Point2f mid_eye_src( (srcPoints[0].x+srcPoints[1].x)/2, (srcPoints[0].y+srcPoints[1].y)/2 );
+    
     float resize_factor = 1.0;
     if (scale_factor > 0 && scale_factor < 1) {
-        // The first two landmarks (inner/outer eyes) and the third landmark (bottom lip/nose) form an isosceles triangle approximately.
+       /* 
+        // The first two landmarks (inner/outer eyes) and the third landmark (bottom/top lip/nose) form an isosceles triangle approximately.
         float d1, d2, d3, h1, h2, h;
         d1 = cv::norm(dstPoints[0] - dstPoints[1]);
         d2 = cv::norm(dstPoints[2] - dstPoints[0]);
@@ -169,6 +353,9 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
         h = (h1 + h2)/2; // Use their average
         resize_factor = scale_factor/ h * imgDim;
         //std::cout<<" "<<d1<<" "<<d2<<" "<<d3<<" "<<h1<<" "<<h2<<" "<<h<<" "<<resize_factor<<std::endl;
+        */
+        float h = cv::norm(tpPoints[2] - mid_eye_tp);
+        resize_factor = scale_factor/ h;
     }
     for (int i=0; i<nPoints; i++)
     {
@@ -177,8 +364,96 @@ cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
         dstPoints[i] += cv::Point2f(0.5*imgDim, 0.5*imgDim);
         //std::cout<<dstPoints[i]<<std::endl;
     }
+    //Get affine matrix.
     H = cv::getAffineTransform(srcPoints, dstPoints);
-    inv_H = cv::getAffineTransform(dstPoints, srcPoints);
+    cv::invertAffineTransform(H, inv_H);
+    //std::cout<<"invertAffineTransform: "<<inv_H<<std::endl;
+    //inv_H = cv::getAffineTransform(dstPoints, srcPoints);
+    //std::cout<<"getAffineTransform: "<<inv_H<<std::endl;
+
+//    //-------------------------------------------------------
+//    // Transform variables.
+//    // Use line connecting point in the middle of eyes and the top/bottom nose/lip point as the vertical axis.
+//    //float delta_y = template_face.at<float>(51, 1) - template_face.at<float>(27, 1);
+//    //float delta_x = template_face.at<float>(51, 0) - template_face.at<float>(27, 0);
+//    float delta_y = tpPoints[2].y - mid_eye_tp.y;
+//    float delta_x = tpPoints[2].x - mid_eye_tp.x;
+//    float angle_temp = atan2(delta_y, delta_x);
+//    //std::cout<<"arctan(y/x) "<<atan2(delta_y, delta_x)<<std::endl;
+//    //delta_y = landmarks.part(51).y() - landmarks.part(27).y();
+//    //delta_x = landmarks.part(51).x() - landmarks.part(27).x();
+//    delta_y = srcPoints[2].y - mid_eye_src.y;
+//    delta_x = srcPoints[2].x - mid_eye_src.x;
+//    float angle_img = atan2(delta_y, delta_x);
+//    float angle_rotation = (angle_img - angle_temp) * 180 / dlib::pi;
+//    //std::cout<<"arctan(y/x) "<<-1*atan2(delta_y, delta_x)<<std::endl;
+//    std::cout<<"Rotation angle is : "<<angle_rotation<<std::endl;
+ 
+//    cv::Mat rotImg = dlib::toMat(rgbImg);
+//    cv::Mat H_rot = cv::getRotationMatrix2D(cv::Point(rotImg.cols/2, rotImg.rows/2), angle_rotation, 1);
+
+    
+//    float value_tp[4] = {1e10, 1e10, -1e10, -1e10}; // min{x}, min{y}, max{x}, max{y} of the template
+//    float value_rot[4] = {1e10, 1e10, -1e10, -1e10}; // min{x}, min{y}, max{x}, max{y} of the rotated image
+//    std::vector<cv::Point> rotPoints;
+//    for ( int i = 0; i < template_face.rows; i++ ) {
+//      dlib::point p = landmarks.part(i);
+//      cv::Point result;
+//      result.x = H_rot.at<double>(0, 0)*p.x() +
+//                 H_rot.at<double>(0, 1)*p.y() +
+//                 H_rot.at<double>(0, 2);
+//      result.y = H_rot.at<double>(1, 0)*p.x() +
+//                 H_rot.at<double>(1, 1)*p.y() +
+//                 H_rot.at<double>(1, 2);
+//      rotPoints.push_back(result);
+
+//      cv::Point pt(template_face.at<float>(i, 0), template_face.at<float>(i, 1));
+//      value_tp[0] = value_tp[0] > pt.x ? pt.x : value_tp[0];
+//      value_tp[1] = value_tp[1] > pt.y ? pt.y : value_tp[1];
+//      value_tp[2] = value_tp[2] < pt.x ? pt.x : value_tp[2];
+//      value_tp[3] = value_tp[3] < pt.y ? pt.y : value_tp[3];
+      
+//      value_rot[0] = value_rot[0] > result.x ? result.x : value_rot[0];
+//      value_rot[1] = value_rot[1] > result.y ? result.y : value_rot[1];
+//      value_rot[2] = value_rot[2] < result.x ? result.x : value_rot[2];
+//      value_rot[3] = value_rot[3] < result.y ? result.y : value_rot[3];
+//    }
+//    // Point in the middle of the eyes, after rotation.
+//    cv::Point2f mid_eye_rot( (rotPoints[landmarkIndices[1]].x+rotPoints[landmarkIndices[2]].x)/2,
+//        (rotPoints[landmarkIndices[1]].y+rotPoints[landmarkIndices[2]].y)/2 );
+
+//    //// Show rotated image for debug.
+//    //cv::line(rotImg, mid_eye_rot, rotPoints[landmarkIndices[3]], CV_RGB(255, 0, 0));
+//    //cv::line(rotImg, cv::Point2f(value_rot[0],0), cv::Point2f(value_rot[0],300), CV_RGB(255, 0, 0));
+//    //cv::line(rotImg, cv::Point2f(value_rot[2],0), cv::Point2f(value_rot[2],300), CV_RGB(255, 0, 0));
+//    //cv::imshow("Roataed image", rotImg);
+//    //cv::waitKey(-1);
+
+//    // Aspect ratio of the temlate and the rotated image
+//    float ar_tp = (value_tp[2] - value_tp[0]) / (value_tp[3] - value_tp[1]);
+//    float ar_rot = (value_rot[2] - value_rot[0]) / (value_rot[3] - value_rot[1]);
+//    float ar_change = (ar_rot - ar_tp) / ar_tp;
+
+//    // Pitching rate. We use the change of mid_eye_to_top_lip/whole_face_height as the approximate estimate of the face pitching rate.
+//    float p_tp = (tpPoints[2].y - mid_eye_tp.y) / (value_tp[3] - value_tp[1]);
+//    float p_rot = (rotPoints[landmarkIndices[3]].y - mid_eye_rot.y) / (value_rot[3] - value_rot[1]);
+//    float pitching = (p_rot - p_tp) / p_tp;
+
+//    // Left and right face ratio of the template and the rotated image
+//    //// Use landmark 51 and 27's average x as the center vertial axis
+//    //float center_x_tp = (landmarks.part(51).x() + landmarks.part(27).x()) / 2;
+//    //float center_x_rot = (rotPoints[51].x + rotPoints[27].x) / 2;
+//    // Use line connecting mid_eye and bottom/top lip/nose as the vertical axis.
+//    float center_x_tp = (mid_eye_tp.x + tpPoints[2].x) / 2;
+//    float center_x_rot = (mid_eye_rot.x + rotPoints[landmarkIndices[3]].x) / 2;
+//    float lr_tp = (value_tp[2] - center_x_tp) / (center_x_tp - value_tp[0]);
+//    float lr_rot = (value_rot[2] - center_x_rot) / (center_x_rot - value_rot[0]);
+//    float lr_change = (lr_rot - lr_tp) / lr_tp;
+//    std::cout<<"lr_change: "<<lr_tp<<" "<<lr_rot<<" "<<lr_change<<std::endl;
+//    std::cout<<"ar_change: "<<ar_tp<<" "<<ar_rot<<" "<<ar_change<<std::endl;
+//    std::cout<<"Pitching: "<<p_tp<<" "<<p_rot<<" "<<pitching<<std::endl;
+//    //-------------------------------------------------------
+
     cv::Mat warpedImg = dlib::toMat(rgbImg);
     cv::warpAffine(warpedImg, warpedImg, H, cv::Size(imgDim, imgDim));
     return warpedImg;

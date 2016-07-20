@@ -29,6 +29,13 @@ static dlib::rectangle openCVRectToDlib(cv::Rect r)
     return dlib::rectangle((long)r.tl().x, (long)r.tl().y, (long)r.br().x - 1, (long)r.br().y - 1);
 }
 
+typedef struct FACE_ALIGN_TRANS_VAR {
+  float rotation;        // Rotation angle
+  float pitching; // Pitching rate (good in raise face). Use the change of mid_eye_to_top_lip/whole_face_height as the approximate estimate of the face pitching rate.
+  float ar_change; // Change of face aspect ratio (fair in down face, good in face fragment).
+  float lr_change; // Change of width_of_left_face / width_of_right_face
+} FaceAlignTransVar;
+
 class FaceAlign
 {
 public:
@@ -44,46 +51,62 @@ public:
     cv::Mat align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
                   dlib::rectangle bb=dlib::rectangle(),
                   const int imgDim=DEFAULT_RESIZE_DIM,
-                  const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                  const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
                   const float scale_factor=0.0);
     cv::Mat  align(cv::Mat & rgbImg,
                    cv::Rect rect=cv::Rect(),
                    const int imgDim=DEFAULT_RESIZE_DIM,
-                   const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                   const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
                    const float scale_factor=0.0);
     cv::Mat align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,
                   cv::Mat & H,  // The affine matrix to the template
                   cv::Mat & inv_H, // Inverse affine matrix
                   dlib::rectangle bb=dlib::rectangle(),
                   const int imgDim=DEFAULT_RESIZE_DIM,
-                  const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                  const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
                   const float scale_factor=0.0);
     cv::Mat align(cv::Mat &rgbImg,
                   cv::Mat & H,  // The affine matrix to the template
                   cv::Mat & inv_H, // Inverse affine matrix
                   cv::Rect rect=cv::Rect(),
                   const int imgDim=DEFAULT_RESIZE_DIM,
-                  const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                  const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
                   const float scale_factor=0.0);
+    cv::Mat  align(dlib::cv_image<dlib::bgr_pixel> &rgbImg, 
+        cv::Mat & H, // The affine matrix to the template
+        FaceAlignTransVar & V,  // Transform variables in face alignment
+        dlib::rectangle bb=dlib::rectangle(),
+        const int imgDim=DEFAULT_RESIZE_DIM,
+        const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
+        const float scale_factor=0.0);
+    cv::Mat  align(cv::Mat &rgbImg,
+        cv::Mat & H, // The affine matrix to the template
+        FaceAlignTransVar & V, // Transform variables in face alignment
+        cv::Rect rect=cv::Rect(),
+        const int imgDim=DEFAULT_RESIZE_DIM,
+        const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
+        const float scale_factor=0.0);
 
     // Detect the largest face, align and crop it.
     cv::Mat detectAlignCrop(const cv::Mat &img,
                             cv::Rect & rect,
                             const int imgDim=DEFAULT_RESIZE_DIM,
-                            const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                            const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
                             const float scale_factor=0.0);
     cv::Mat detectAlignCrop(const cv::Mat &img,
                             cv::Rect & rect,
                             cv::Mat & H,  // The affine matrix to the template
                             cv::Mat & inv_H, // Inverse affine matrix
                             const int imgDim=DEFAULT_RESIZE_DIM,
-                            const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_BOTTOM_LIP,
+                            const int landmarkIndices[]=FaceAlign::INNER_EYES_AND_TOP_LIP,
                             const float scale_factor=0.0);
 
     // Detect face(s);
     void detectFace(const cv::Mat & img, std::vector<cv::Rect> & rects);
     void detectFace(const cv::Mat & img, cv::Rect & rect);
 
+    // Landmark indices corresponding to the inner eyes and top lip.
+    static const int INNER_EYES_AND_TOP_LIP[];
     // Landmark indices corresponding to the inner eyes and bottom lip.
     static const int INNER_EYES_AND_BOTTOM_LIP[];
     // Landmark indices corresponding to the inner eyes and bottom lip.
