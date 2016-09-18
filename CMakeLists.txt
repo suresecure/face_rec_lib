@@ -8,7 +8,10 @@ set(FaceRecSrzn_VERSION
   ${FaceRecSrzn_MAJOR_VERSION}.${FaceRecSrzn_MINOR_VERSION}.${FaceRecSrzn_PATCH_VERSION})
 
 # Use dlib
-include(../dlib/cmake)
+#include(../dlib/cmake)
+add_library(dlib SHARED IMPORTED)   # Dynamic import
+set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/libs/libdlib.so)
+include(../dlib/cmake)  
 #add_library(dlib SHARED IMPORTED)   # Dynamic import 
 ##set_target_properties(dlib PROPERTIES IMPORTED_LOCATION /home/robert/myCoding/suresecure/face_rec_lib/libs/libdlib.so)
 #set_target_properties(dlib PROPERTIES IMPORTED_LOCATION ${CMAKE_SOURCE_DIR}/libs/libdlib.so)
@@ -76,7 +79,8 @@ if(OPENMP_FOUND)
 endif()
 
 
-add_library (face_rec_srzn STATIC 
+#add_library (face_rec_srzn STATIC 
+add_library (face_rec_srzn SHARED
   include/face_recognition.hpp 
   src/face_recognition.cpp
   src/classifier.cpp
@@ -118,25 +122,25 @@ set_target_properties(face_rec_srzn PROPERTIES
 
 #FRAMEWORK ON
 #SOVERSION 0
-#install(TARGETS face_rec_srzn 
-  ## IMPORTANT: Add the foo library to the "export-set"
-  ##EXPORT FaceRecSrznTargets
-  #RUNTIME DESTINATION "bin" COMPONENT bin
-  #LIBRARY DESTINATION "lib" COMPONENT shlib
-  #PUBLIC_HEADER DESTINATION "include"
-  #COMPONENT dev)
+install(TARGETS face_rec_srzn 
+  # IMPORTANT: Add the foo library to the "export-set"
+  #EXPORT FaceRecSrznTargets
+  RUNTIME DESTINATION "bin" COMPONENT bin
+  LIBRARY DESTINATION "lib" COMPONENT shlib
+  PUBLIC_HEADER DESTINATION "include"
+  COMPONENT dev)
 
-#install(FILES lfw_test/lfw_test.cpp
-  ##src/face_align.cpp
-  ##include/face_align.h
-  #lfw_test/CMakeLists.txt
-  #DESTINATION lfw_test)
-#install(FILES  cmake/Modules/FindFlann.cmake
-  #DESTINATION lfw_test/cmake/Modules)
-#install(FILES libs/libcaffe.so
-  #libs/libcaffe.so.1.0.0-rc3
-  #libs/libdlib.so
-  #libs/libdlib.so.18.18.99
-  #DESTINATION lib)
+install(FILES lfw_test/lfw_test.cpp
+  #src/face_align.cpp
+  #include/face_align.h
+  lfw_test/CMakeLists.txt
+  DESTINATION lfw_test)
+install(FILES  cmake/Modules/FindFlann.cmake
+  DESTINATION lfw_test/cmake/Modules)
+install(FILES libs/libcaffe.so
+  libs/libcaffe.so.1.0.0-rc3
+  libs/libdlib.so
+  libs/libdlib.so.18.18.99
+  DESTINATION lib)
 #install(DIRECTORY dlib
   #DESTINATION ${CMAKE_INSTALL_PREFIX})

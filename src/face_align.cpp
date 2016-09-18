@@ -77,6 +77,15 @@ std::vector<dlib::rectangle> FaceAlign::getAllFaceBoundingBoxes(dlib::cv_image<d
     return detector(rgbImg);
 }
 
+std::vector<cv::Rect> FaceAlign::getAllFaceBoundingBoxes(cv::Mat & rgbImg) {
+  dlib::cv_image<dlib::bgr_pixel> cimg(rgbImg);
+  std::vector<dlib::rectangle> bb = getAllFaceBoundingBoxes(cimg);
+  std::vector<cv::Rect> res;
+  for (int i = 0; i < bb.size(); i++) 
+    res.push_back(dlibRectangleToOpenCV(bb[i]));
+  return res;
+}
+
 dlib::rectangle FaceAlign::getLargestFaceBoundingBox(dlib::cv_image<dlib::bgr_pixel> & rgbImg)
 {
     std::vector<dlib::rectangle> dets = this->getAllFaceBoundingBoxes(rgbImg);
@@ -99,6 +108,53 @@ dlib::rectangle FaceAlign::getLargestFaceBoundingBox(dlib::cv_image<dlib::bgr_pi
     {
         return dlib::rectangle();
     }
+}
+
+cv::Rect FaceAlign::getLargestFaceBoundingBox(cv::Mat & rgbImg) {
+  dlib::cv_image<dlib::bgr_pixel> cimg(rgbImg);
+  return dlibRectangleToOpenCV(getLargestFaceBoundingBox(cimg));
+}
+
+dlib::full_object_detection FaceAlign::getLargestFaceLandmarks(dlib::cv_image<dlib::bgr_pixel> & rgbImg) {
+  dlib::rectangle bb = this->getLargestFaceBoundingBox(rgbImg);
+  dlib::full_object_detection landmarks = this->predictor(rgbImg, bb);
+  return landmarks;
+}
+
+std::vector<cv::Point2f> FaceAlign::getLargestFaceLandmarks(cv::Mat & rgbImg) {
+  dlib::cv_image<dlib::bgr_pixel> cimg(rgbImg);
+  dlib::full_object_detection landmarks = getLargestFaceLandmarks(cimg);
+  std::vector<cv::Point2f> res;
+  if (landmarks.num_parts() <= 0)
+    return res;
+  for (int i = 0; i < 68; i++) {
+    cv::Point2f p(landmarks.part(i).x(), landmarks.part(i).y());
+    res.push_back(p);
+  }
+  return res;
+}
+
+cv::vector<dlib::full_object_detection> FaceAlign::getAllFaceLandmarks(dlib::cv_image<dlib::bgr_pixel> & rgbImg) {
+  cv::vector<dlib::full_object_detection> res;
+  std::vector<dlib::rectangle> dets = getAllFaceBoundingBoxes(rgbImg);
+  for (int i = 0; i < dets.size(); i++) 
+    res.push_back(this->predictor(rgbImg, dets[i])); 
+  return res;
+}
+
+std::vector<std::vector<cv::Point2f> > FaceAlign::getAllFaceLandmarks(cv::Mat & rgbImg){
+  dlib::cv_image<dlib::bgr_pixel> cimg(rgbImg);
+  std::vector<std::vector<cv::Point2f> > res;
+  cv::vector<dlib::full_object_detection> dets = getAllFaceLandmarks(cimg);
+  for (int d = 0 ; d < dets.size(); d++) {
+    std::vector<cv::Point2f> lm;
+    for (int i = 0; i < 68; i++) {
+      cv::Point2f p(dets[d].part(i).x(), dets[d].part(i).y());
+      lm.push_back(p);
+    }
+    res.push_back(lm);
+  }
+  return res;
 }
 
 cv::Mat  FaceAlign::align(dlib::cv_image<dlib::bgr_pixel> &rgbImg,

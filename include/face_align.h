@@ -44,7 +44,13 @@ public:
 
     // Detect face using dlib.
     std::vector<dlib::rectangle> getAllFaceBoundingBoxes(dlib::cv_image<dlib::bgr_pixel> & rgbImg);
+    std::vector<cv::Rect> getAllFaceBoundingBoxes(cv::Mat & rgbImg);
     dlib::rectangle getLargestFaceBoundingBox(dlib::cv_image<dlib::bgr_pixel> & rgbImg);
+    cv::Rect getLargestFaceBoundingBox(cv::Mat & rgbImg);
+    dlib::full_object_detection getLargestFaceLandmarks(dlib::cv_image<dlib::bgr_pixel> & rgbImg);
+    std::vector<cv::Point2f> getLargestFaceLandmarks(cv::Mat & rgbImg);
+    cv::vector<dlib::full_object_detection> getAllFaceLandmarks(dlib::cv_image<dlib::bgr_pixel> & rgbImg);
+    std::vector<std::vector<cv::Point2f> > getAllFaceLandmarks(cv::Mat & rgbImg);
     // Find face landmarks.
     std::vector<dlib::point> findLandmarks(dlib::cv_image<dlib::bgr_pixel> &rgbImg, dlib::rectangle bb);
     // Do affine transform to align face.
